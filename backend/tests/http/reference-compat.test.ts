@@ -78,6 +78,52 @@ describe('reference frontend compatibility routes', () => {
     expect(response.body).toMatchObject({ source: 'vision', environment: { environmentType: 'a scanned room' } });
   });
 
+  it('accepts data-URL scan photos from the Expo client', async () => {
+    const visionApp = createApp({
+      ai: {
+        async analyzeEnvironment(images: Array<{ buffer: Buffer }>) {
+          expect(images).toHaveLength(1);
+          expect(images[0]?.buffer.toString()).toBe('data-url-frame');
+          return {
+            environmentType: 'a scanned room', visibleObjects: ['lamp'], colors: ['orange'], landmarks: ['desk'],
+            possibleQuestTargets: ['lamp'], possibleHints: ['near the desk'],
+          };
+        },
+      } as never,
+      voice: { async synthesize() { return null; } },
+    });
+
+    const response = await request(visionApp)
+      .post('/api/environment/analyze')
+      .send({ location_type: 'Home', images: [`data:image/jpeg;base64,${Buffer.from('data-url-frame').toString('base64')}`] });
+
+    expect(response.status).toBe(200);
+    expect(response.body.source).toBe('vision');
+  });
+
+  it('accepts image/jpg data URLs from iPhone camera captures', async () => {
+    const visionApp = createApp({
+      ai: {
+        async analyzeEnvironment(images: Array<{ buffer: Buffer }>) {
+          expect(images).toHaveLength(1);
+          expect(images[0]?.buffer.toString()).toBe('iphone-frame');
+          return {
+            environmentType: 'a scanned room', visibleObjects: ['lamp'], colors: ['orange'], landmarks: ['desk'],
+            possibleQuestTargets: ['lamp'], possibleHints: ['near the desk'],
+          };
+        },
+      } as never,
+      voice: { async synthesize() { return null; } },
+    });
+
+    const response = await request(visionApp)
+      .post('/api/environment/analyze')
+      .send({ location_type: 'Home', images: [`data:image/jpg;base64,${Buffer.from('iphone-frame').toString('base64')}`] });
+
+    expect(response.status).toBe(200);
+    expect(response.body.source).toBe('vision');
+  });
+
   it('uses the configured AI for a supplied legacy quest photo and contextual hint', async () => {
     const aiApp = createApp({
       ai: {
@@ -113,6 +159,20 @@ describe('reference frontend compatibility routes', () => {
     expect(validation.body).toMatchObject({ success: true, xp: 100, scavvy_line: expect.any(String) });
     expect(hint.status).toBe(200);
     expect(hint.body.hint).toContain('Think about it');
+    expect(voice.status).toBe(204);
+  });
+
+  it('returns 204 when live voice synthesis throws', async () => {
+    const voiceApp = createApp({
+      ai: {} as never,
+      voice: {
+        async synthesize() {
+          throw new Error('ElevenLabs payment required');
+        },
+      },
+    });
+
+    const voice = await request(voiceApp).get('/api/voice?line=success');
     expect(voice.status).toBe(204);
   });
 });

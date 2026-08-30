@@ -9,6 +9,7 @@ import { ScavvyMascot } from "@/src/components/ScavvyMascot";
 import { T } from "@/src/components/ui";
 import { colors, radius, shadow, spacing } from "@/src/theme";
 import { useScavvy } from "@/src/state/ScavvyContext";
+import { peekVerificationPhoto } from "@/src/state/pending-photo";
 import { ai } from "@/src/services/ai";
 
 const STATUSES = [
@@ -21,7 +22,7 @@ export default function Analyzing() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { index = "0", attempt = "1", uri = "" } = useLocalSearchParams<{ index: string; attempt: string; uri: string }>();
-  const { adventure, profile, env } = useScavvy();
+  const { adventure, env, verificationPhoto } = useScavvy();
 
   const [statusIdx, setStatusIdx] = useState(0);
   const sweep = useRef(new Animated.Value(0)).current;
@@ -44,8 +45,9 @@ export default function Analyzing() {
         ai.validateQuest({
           missionTitle: mission?.title || "Find something interesting.",
           environment: env,
-          image: null,
+          image: peekVerificationPhoto()?.base64 ?? verificationPhoto?.base64 ?? null,
           attempt: parseInt(attempt, 10) || 1,
+          difficulty: mission?.difficulty,
         }),
         new Promise((r) => setTimeout(r, 2700)),
       ]);
@@ -62,7 +64,19 @@ export default function Analyzing() {
         });
       }
     };
-    run();
+    run().catch((error) => {
+      if (__DEV__) console.warn("[scavvy] validate failed", error instanceof Error ? error.name : "unknown");
+      if (cancelled) return;
+      router.replace({
+        pathname: "/mission/failure",
+        params: {
+          index: String(idx),
+          attempt: String(attempt),
+          uri: String(uri),
+          reason: "Scavvy got distracted. Try that find again.",
+        },
+      });
+    });
     return () => {
       cancelled = true;
       clearInterval(interval);

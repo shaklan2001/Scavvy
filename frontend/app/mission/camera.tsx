@@ -10,12 +10,13 @@ import { ScavvyMascot, MascotBlob } from "@/src/components/ScavvyMascot";
 import { Button, T } from "@/src/components/ui";
 import { colors, radius, spacing } from "@/src/theme";
 import { useScavvy } from "@/src/state/ScavvyContext";
+import { queueVerificationPhoto } from "@/src/state/pending-photo";
 
 export default function MissionCamera() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { index = "0", attempt = "1" } = useLocalSearchParams<{ index: string; attempt: string }>();
-  const { adventure } = useScavvy();
+  const { adventure, setVerificationPhoto } = useScavvy();
   const [permission, requestPermission] = useCameraPermissions();
   const camRef = useRef<CameraView>(null);
   const [torch, setTorch] = useState(false);
@@ -25,10 +26,12 @@ export default function MissionCamera() {
   const mission = adventure?.missions[idx];
   const label = `MISSION ${String(idx + 1).padStart(2, "0")}`;
 
-  const goAnalyze = (uri: string | null) => {
+  const goAnalyze = (photo: { uri: string; base64: string | null } | null) => {
+    queueVerificationPhoto(photo);
+    setVerificationPhoto(photo);
     router.push({
       pathname: "/mission/analyzing",
-      params: { index: String(idx), attempt: String(attempt), uri: uri || "" },
+      params: { index: String(idx), attempt: String(attempt), uri: photo?.uri || "" },
     });
   };
 
@@ -36,9 +39,16 @@ export default function MissionCamera() {
     if (busy) return;
     setBusy(true);
     try {
-      const photo = await camRef.current?.takePictureAsync({ quality: 0.6, skipProcessing: true });
-      goAnalyze(photo?.uri ?? null);
-    } catch {
+      const photo = await camRef.current?.takePictureAsync({
+        quality: 0.28,
+        base64: true,
+        skipProcessing: false,
+        imageType: "jpg",
+      });
+      if (photo?.uri) goAnalyze({ uri: photo.uri, base64: photo.base64 ?? null });
+      else goAnalyze(null);
+    } catch (error) {
+      if (__DEV__) console.warn("[scavvy] capture failed", error instanceof Error ? error.name : "unknown");
       goAnalyze(null);
     } finally {
       setBusy(false);
@@ -49,10 +59,15 @@ export default function MissionCamera() {
     try {
       const res = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: "images",
-        quality: 0.6,
+        quality: 0.45,
+        base64: true,
       });
-      if (!res.canceled && res.assets?.[0]) goAnalyze(res.assets[0].uri);
-    } catch {
+      if (!res.canceled && res.assets?.[0]) {
+        const asset = res.assets[0];
+        goAnalyze({ uri: asset.uri, base64: asset.base64 ?? null });
+      }
+    } catch (error) {
+      if (__DEV__) console.warn("[scavvy] gallery pick failed", error instanceof Error ? error.name : "unknown");
       goAnalyze(null);
     }
   };

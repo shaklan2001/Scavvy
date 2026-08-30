@@ -5,7 +5,7 @@ import type { EnvironmentContext, GeneratedQuest, ImageInput, LocationType, Ques
 
 interface ResponsesClient {
   responses: {
-    create(input: Record<string, unknown>): Promise<{ output_text?: string }>;
+    create(input: Record<string, unknown>): Promise<{ output_text?: string; output?: unknown }>;
   };
 }
 
@@ -50,12 +50,9 @@ export class OpenAiProvider implements ScavvyAiProvider {
       prompt: `Using this private environment context, generate exactly three safe, distinct Scavvy quests: one observation, one visual_clue, and one reasoning quest. Require light reasoning instead of simply naming an object. Do not involve strangers, private information, dangerous behavior, or restricted areas. Context: ${JSON.stringify(context)}`,
       schemaName: 'generated_quests',
     });
-    const parsedQuests = z.array(generatedQuestSchema).length(3).safeParse(output);
+    const parsedQuests = z.object({ quests: z.array(generatedQuestSchema).min(3) }).safeParse(output);
     if (!parsedQuests.success) throw new Error('AI must generate exactly 3 quests');
-    const quests = parsedQuests.data;
-    const types = new Set(quests.map((quest) => quest.type));
-    if (types.size !== 3) throw new Error('AI must generate exactly 3 distinct quest types');
-    return quests;
+    return parsedQuests.data.quests.slice(0, 3);
   }
 
   async validateQuest(quest: Quest, context: EnvironmentContext, image: ImageInput): Promise<VerificationResult> {
@@ -88,13 +85,32 @@ export class OpenAiProvider implements ScavvyAiProvider {
       input: [{ role: 'user', content }],
       text: { format: { type: 'json_schema', name: input.schemaName, strict: true, schema: schemaFor(input.schemaName) } },
     });
-    if (!response.output_text) throw new Error('AI returned an empty response');
+    const outputText = readOutputText(response);
+    if (!outputText) throw new Error('AI returned an empty response');
     try {
-      return JSON.parse(response.output_text) as unknown;
+      return JSON.parse(outputText) as unknown;
     } catch {
       throw new Error('AI returned invalid JSON');
     }
   }
+}
+
+function readOutputText(response: { output_text?: string; output?: unknown }): string {
+  if (typeof response.output_text === 'string' && response.output_text.trim().length > 0) {
+    return response.output_text;
+  }
+  if (!Array.isArray(response.output)) return '';
+  for (const item of response.output) {
+    if (!item || typeof item !== 'object') continue;
+    const content = (item as { content?: unknown }).content;
+    if (!Array.isArray(content)) continue;
+    for (const part of content) {
+      if (!part || typeof part !== 'object') continue;
+      const text = (part as { text?: unknown }).text;
+      if (typeof text === 'string' && text.trim().length > 0) return text;
+    }
+  }
+  return '';
 }
 
 function schemaFor(name: string): Record<string, unknown> {
@@ -107,7 +123,16 @@ function schemaFor(name: string): Record<string, unknown> {
     },
     required: ['type', 'title', 'description', 'difficulty', 'xp'],
   };
-  if (name === 'generated_quests') return { type: 'array', items: quest, minItems: 3, maxItems: 3 };
+  if (name === 'generated_quests') {
+    return {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        quests: { type: 'array', items: quest, minItems: 3, maxItems: 3 },
+      },
+      required: ['quests'],
+    };
+  }
   if (name === 'verification_result') return {
     type: 'object', additionalProperties: false,
     properties: { success: { type: 'boolean' }, confidence: { type: 'number' }, explanation: { type: 'string' }, scavvyReaction: { type: 'string' } },
@@ -126,5 +151,5 @@ function schemaFor(name: string): Record<string, unknown> {
 }
 
 export function createOpenAiProvider(apiKey: string, model = process.env.OPENAI_MODEL ?? 'gpt-5.6-luna'): OpenAiProvider {
-  return new OpenAiProvider(new OpenAI({ apiKey }) as unknown as ResponsesClient, model);
+  return new OpenAiProvider(new OpenAI({ apiKey, timeout: 40_000, maxRetries: 1 }) as unknown as ResponsesClient, model);
 }

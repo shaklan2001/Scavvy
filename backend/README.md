@@ -23,14 +23,18 @@ npm install
 cp .env.example .env
 ```
 
-Set your provider credentials in `.env`:
+Set your provider credentials in `.env` (optional — the API starts without them and serves mock quests):
 
 ```dotenv
+PORT=4000
+CORS_ORIGINS=http://localhost:8081,http://127.0.0.1:8081,http://localhost:8082,http://localhost:19006
 OPENAI_API_KEY=your-key
 OPENAI_MODEL=gpt-5.6-luna
 ELEVENLABS_API_KEY=your-key
 ELEVENLABS_VOICE_ID=your-voice-id
 ```
+
+`CORS_ORIGINS` is an exact allowlist. Never set it to `*` or `null`. Add your Expo web origin if it is not already listed.
 
 Run the API:
 

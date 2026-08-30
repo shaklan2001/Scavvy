@@ -24,8 +24,9 @@ export class ElevenLabsProvider {
       method: 'POST',
       headers: { 'xi-api-key': this.options.apiKey, 'content-type': 'application/json' },
       body: JSON.stringify({ text, model_id: this.options.model ?? 'eleven_multilingual_v2' }),
+      signal: AbortSignal.timeout(8_000),
     });
-    if (!response.ok) throw new Error('ElevenLabs voice generation failed');
+    if (!response.ok) return null;
     const contentType = response.headers.get('content-type') ?? 'audio/mpeg';
     const audio = Buffer.from(await response.arrayBuffer()).toString('base64');
     return `data:${contentType};base64,${audio}`;

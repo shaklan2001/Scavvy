@@ -10,6 +10,7 @@ import { ScavvyMascot, MascotBlob } from "@/src/components/ScavvyMascot";
 import { Button, T } from "@/src/components/ui";
 import { colors, radius, spacing } from "@/src/theme";
 import { useScavvy } from "@/src/state/ScavvyContext";
+import { queueScanImages } from "@/src/state/pending-scan";
 
 const GUIDE = ["Look around slowly.", "Show me another side.", "Nice. One more.", "Got it!"];
 
@@ -25,6 +26,7 @@ export default function Scan() {
   const images = useRef<string[]>([]);
 
   const finish = () => {
+    queueScanImages(images.current);
     setScanImages(images.current);
     router.replace({ pathname: "/mission/analyzing-env", params: { location: String(location) } });
   };
@@ -34,9 +36,16 @@ export default function Scan() {
     setBusy(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     try {
-      const photo = await camRef.current?.takePictureAsync({ quality: 0.4, base64: true, skipProcessing: true });
-      if (photo?.base64) images.current.push(photo.base64);
-    } catch {}
+      const photo = await camRef.current?.takePictureAsync({
+        quality: 0.22,
+        base64: true,
+        skipProcessing: false,
+        imageType: "jpg",
+      });
+      if (photo?.base64) images.current.push(`data:image/jpeg;base64,${photo.base64}`);
+    } catch (error) {
+      if (__DEV__) console.warn("[scavvy] scan capture failed", error instanceof Error ? error.name : "unknown");
+    }
     const n = count + 1;
     setCount(n);
     setBusy(false);
