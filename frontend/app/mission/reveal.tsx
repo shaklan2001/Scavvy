@@ -1,19 +1,40 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Animated, Pressable, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 import { AdventureBg } from "@/src/components/Bg";
 import { ScavvyMascot } from "@/src/components/ScavvyMascot";
-import { Button, T } from "@/src/components/ui";
+import { Button, SpeechBubble, T } from "@/src/components/ui";
 import { colors, spacing } from "@/src/theme";
 import { useScavvy } from "@/src/state/ScavvyContext";
 import { voice } from "@/src/services/voice";
+import { ai } from "@/src/services/ai";
 
 export default function MissionReveal() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { adventure } = useScavvy();
+  const { adventure, env } = useScavvy();
+  const [hint, setHint] = useState<string>("");
+  const [hintLevel, setHintLevel] = useState(0);
+  const [hintBusy, setHintBusy] = useState(false);
+
+  const askScavvy = async () => {
+    if (hintBusy || hintLevel >= 3) return;
+    setHintBusy(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    const level = hintLevel + 1;
+    try {
+      const mission = adventure?.missions[adventure.currentIndex];
+      const h = await ai.askHint(mission?.title || "", env, level);
+      setHint(h);
+      setHintLevel(level);
+      voice.play("mission_intro");
+    } finally {
+      setHintBusy(false);
+    }
+  };
 
   const fade = useRef(new Animated.Value(0)).current;
   const slide = useRef(new Animated.Value(30)).current;
@@ -84,7 +105,26 @@ export default function MissionReveal() {
           <ScavvyMascot pose="detective" size={230} anim="float" />
         </View>
 
+        {hint ? (
+          <View style={styles.hintBubble}>
+            <SpeechBubble testID="hint-bubble" text={hint} tailSide="none" />
+          </View>
+        ) : null}
+
         <View style={[styles.footer, { paddingBottom: insets.bottom + 20 }]}>
+          {hintLevel < 3 && (
+            <>
+              <Button
+                testID="ask-scavvy-button"
+                label={hintBusy ? "SCAVVY IS THINKING..." : hintLevel === 0 ? "ASK SCAVVY" : "ANOTHER HINT"}
+                variant="secondary"
+                icon="bulb"
+                onPress={askScavvy}
+                disabled={hintBusy}
+              />
+              <View style={{ height: spacing.md }} />
+            </>
+          )}
           <Button
             testID="find-it-button"
             label="FIND IT"
@@ -111,5 +151,6 @@ const styles = StyleSheet.create({
   },
   pawTrail: { flexDirection: "row", gap: 12, marginTop: spacing.xl, marginLeft: spacing.xs },
   mascotWrap: { position: "absolute", bottom: 96, right: -10, alignItems: "center" },
+  hintBubble: { position: "absolute", bottom: 300, left: spacing.xl, right: 140 },
   footer: { position: "absolute", left: spacing.xl, right: spacing.xl, bottom: 0 },
 });

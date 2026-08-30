@@ -55,6 +55,12 @@ type Ctx = {
   profile: Profile | null;
   progress: Progress;
   adventure: ActiveAdventure | null;
+  env: any | null;
+  scanImages: string[];
+  setEnv: (e: any) => void;
+  setScanImages: (imgs: string[]) => void;
+  loadQuests: (missions: any[]) => void;
+  selectQuest: (index: number) => void;
   saveProfile: (p: Partial<Profile>) => Promise<void>;
   startAdventure: () => Promise<ActiveAdventure>;
   completeMission: (index: number, xp: number, line: string, photoUri: string | null) => Promise<void>;
@@ -72,6 +78,31 @@ export function ScavvyProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [progress, setProgress] = useState<Progress>(SEED_PROGRESS);
   const [adventure, setAdventure] = useState<ActiveAdventure | null>(null);
+  const [env, setEnv] = useState<any | null>(null);
+  const [scanImages, setScanImages] = useState<string[]>([]);
+
+  const loadQuests = useCallback((missions: any[]) => {
+    setAdventure({
+      id: `adv-${Date.now()}`,
+      currentIndex: 0,
+      missions: missions.map((m, i) => ({
+        index: i,
+        title: m.title,
+        hint: m.hint,
+        difficulty: m.difficulty || "Easy",
+        type: m.type,
+        xp: m.xp || 100,
+        status: "pending",
+        photoUri: null,
+        earnedXp: 0,
+        line: "",
+      })) as any,
+    });
+  }, []);
+
+  const selectQuest = useCallback((index: number) => {
+    setAdventure((prev) => (prev ? { ...prev, currentIndex: index } : prev));
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -184,6 +215,12 @@ export function ScavvyProvider({ children }: { children: React.ReactNode }) {
         profile,
         progress,
         adventure,
+        env,
+        scanImages,
+        setEnv,
+        setScanImages,
+        loadQuests,
+        selectQuest,
         saveProfile,
         startAdventure,
         completeMission,

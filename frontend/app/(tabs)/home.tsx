@@ -1,5 +1,5 @@
-import React, { useState, useCallback } from "react";
-import { ScrollView, StyleSheet, View, Pressable, ActivityIndicator, Platform } from "react-native";
+import React, { useCallback } from "react";
+import { ScrollView, StyleSheet, View, Pressable, Platform } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -36,8 +36,7 @@ function StatCard({ icon, color, value, label }: { icon: keyof typeof Ionicons.g
 export default function Home() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { profile, progress, startAdventure } = useScavvy();
-  const [loading, setLoading] = useState(false);
+  const { profile, progress } = useScavvy();
 
   useFocusEffect(useCallback(() => { Haptics.selectionAsync().catch(() => {}); }, []));
 
@@ -46,11 +45,7 @@ export default function Home() {
   const title = levelTitle(profile?.personality || "explorer");
   const last = DEMO_ADVENTURES[0];
 
-  const onStart = async () => {
-    setLoading(true);
-    try { await startAdventure(); router.push("/mission/reveal"); }
-    finally { setLoading(false); }
-  };
+  const onStart = () => router.push("/mission/environment");
 
   return (
     <CreamBg decorate={false}>
@@ -83,8 +78,7 @@ export default function Home() {
             <MetaChip icon="flash" text="Easy" />
           </View>
           <View style={{ marginTop: spacing.lg }}>
-            <Button testID="start-adventure-button" label={loading ? "SUMMONING SCAVVY..." : "START ADVENTURE"} icon={loading ? undefined : "play"} onPress={onStart} disabled={loading} />
-            {loading && <ActivityIndicator color={colors.orange} style={{ position: "absolute", left: 22, top: 18 }} />}
+            <Button testID="start-adventure-button" label="START ADVENTURE" icon="play" onPress={onStart} />
           </View>
         </Card>
 

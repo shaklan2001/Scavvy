@@ -22,7 +22,7 @@ const TRAIT_META = [
 export default function AdventureComplete() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { adventure, profile, progress, addStreak, resetAdventure, startAdventure } = useScavvy();
+  const { adventure, profile, addStreak, resetAdventure } = useScavvy();
 
   const done = adventure?.missions.filter((m) => m.status === "done").length ?? 3;
   const totalMissions = adventure?.missions.length ?? 3;
@@ -64,8 +64,7 @@ export default function AdventureComplete() {
   const goAgain = async () => {
     voice.stop();
     resetAdventure();
-    await startAdventure();
-    router.replace("/mission/reveal");
+    router.replace("/mission/environment");
   };
 
   return (

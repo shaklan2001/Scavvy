@@ -23,7 +23,8 @@ export default function Success() {
   const idx = parseInt(index, 10) || 0;
   const xpNum = parseInt(xp, 10) || 100;
   const total = adventure?.missions.length ?? 3;
-  const isLast = idx >= total - 1;
+  const doneCount = adventure?.missions.filter((m) => m.status === "done").length ?? 0;
+  const isLast = doneCount >= total; // this mission was just completed
   const scavvyLine = String(line) || "That? That's exactly the kind of thing I meant.";
 
   const [speaking, setSpeaking] = useState(false);
@@ -100,7 +101,7 @@ export default function Success() {
   const next = () => {
     voice.stop();
     if (isLast) router.replace("/adventure-complete");
-    else router.replace("/mission/reveal");
+    else router.replace("/mission/quests");
   };
 
   const speakerScale = speakerPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.25] });
@@ -169,7 +170,7 @@ export default function Success() {
         <View style={{ height: spacing.xl }} />
         <Button
           testID="next-mission-button"
-          label={isLast ? "SEE MY RESULTS" : "NEXT MISSION"}
+          label={isLast ? "SEE MY RESULTS" : "NEXT SIDEQUEST"}
           icon="arrow-forward"
           onPress={next}
         />

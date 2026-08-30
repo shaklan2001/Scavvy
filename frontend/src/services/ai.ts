@@ -91,6 +91,45 @@ export const ai = {
     }
   },
 
+  async analyzeEnvironment(locationType: string, images: string[]) {
+    try {
+      return await post("/environment/analyze", { location_type: locationType, images }, 30000);
+    } catch {
+      return { environment: { environmentType: `a ${locationType} space`, visibleObjects: ["object"], colors: ["mixed"], landmarks: [], possibleQuestTargets: [], possibleHints: ["It's closer than you think."] }, source: "mock" };
+    }
+  },
+
+  async generateQuests(locationType: string, environment: any) {
+    try {
+      const r = await post("/environment/quests", { location_type: locationType, environment }, 20000);
+      return r.quests as any[];
+    } catch {
+      return [
+        { id: "q1", type: "observation", title: "Find something that helps people communicate without speaking.", hint: "You'll know it when you see it.", difficulty: "Easy", xp: 100 },
+        { id: "q2", type: "reasoning", title: "I remember seeing something colourful. Find it.", hint: "Trust your memory of the room.", difficulty: "Medium", xp: 150 },
+        { id: "q3", type: "visual", title: "Find something that becomes much less useful without electricity.", hint: "It probably has a plug or a battery.", difficulty: "Easy", xp: 75 },
+      ];
+    }
+  },
+
+  async validateQuest(args: { missionTitle: string; environment: any; image: string | null; attempt: number }) {
+    try {
+      return await post("/quest/validate", { mission_title: args.missionTitle, environment: args.environment, image: args.image, attempt: args.attempt }, 30000);
+    } catch {
+      return fallbackAnalyze(args.missionTitle);
+    }
+  },
+
+  async askHint(missionTitle: string, environment: any, hintLevel: number) {
+    try {
+      const r = await post("/quest/hint", { mission_title: missionTitle, environment, hint_level: hintLevel }, 15000);
+      return r.hint as string;
+    } catch {
+      const hints = ["I remember seeing something useful nearby.", "People usually spend the most time near it.", "It's a very ordinary object, honestly."];
+      return hints[Math.min(hintLevel - 1, 2)];
+    }
+  },
+
   async adventureSummary(args: {
     name: string;
     personality: string;

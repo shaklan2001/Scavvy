@@ -21,7 +21,7 @@ export default function Analyzing() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { index = "0", attempt = "1", uri = "" } = useLocalSearchParams<{ index: string; attempt: string; uri: string }>();
-  const { adventure, profile } = useScavvy();
+  const { adventure, profile, env } = useScavvy();
 
   const [statusIdx, setStatusIdx] = useState(0);
   const sweep = useRef(new Animated.Value(0)).current;
@@ -41,12 +41,10 @@ export default function Analyzing() {
     let cancelled = false;
     const run = async () => {
       const [result] = await Promise.all([
-        ai.analyzeImage({
+        ai.validateQuest({
           missionTitle: mission?.title || "Find something interesting.",
-          missionIndex: idx,
-          difficulty: mission?.difficulty || "Easy",
-          personality: profile?.personality || "explorer",
-          style: profile?.style || "RANDOM",
+          environment: env,
+          image: null,
           attempt: parseInt(attempt, 10) || 1,
         }),
         new Promise((r) => setTimeout(r, 2700)),

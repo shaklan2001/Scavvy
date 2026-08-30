@@ -14,7 +14,7 @@ export default function AdventureDetail() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { resetAdventure, startAdventure } = useScavvy();
+  const { resetAdventure } = useScavvy();
   const adv = adventureById(String(id));
 
   const back = () => router.replace("/(tabs)/adventures");
@@ -33,8 +33,7 @@ export default function AdventureDetail() {
 
   const playAgain = async () => {
     resetAdventure();
-    await startAdventure();
-    router.replace("/mission/reveal");
+    router.replace("/mission/environment");
   };
 
   return (

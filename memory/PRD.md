@@ -101,3 +101,22 @@ Missing poses fall back to the closest available one.
 - All emoji removed from functional UI (vector Ionicons everywhere).
 - **Haptic on tab switch** via `useFocusEffect` selection haptic in each tab screen (native).
 - Verified end-to-end (iteration_4): all navigation flows + core loop regression pass.
+
+## Environment-Scan Flow — Scavvy "reads the room" (2026-08-30)
+- New differentiator flow: Home → START ADVENTURE → **Environment Setup** (pick Home/Office/
+  Campus/Outdoors/Somewhere Else) → **Scan Space** (capture 3 photos, guided) → **AI analyzes
+  environment** → **Quest Selection** (3 room-specific quests) → play quest → Camera → validate
+  → Success → back to quest map → after 3/3 → Adventure Complete.
+- **Real OpenAI Vision** wired via Emergent key (`EMERGENT_LLM_KEY`) through `emergentintegrations`
+  LlmChat + ImageContent. New backend endpoints: `/api/environment/analyze` (vision, returns
+  environmentType/visibleObjects/colors/landmarks/possibleQuestTargets/possibleHints, no people/
+  unsafe), `/api/environment/quests` (3 reasoning quests: observation/reasoning/visual),
+  `/api/quest/validate`, `/api/quest/hint`. All degrade to rich location-based mocks — demo never
+  stalls.
+- **ASK SCAVVY** hint system on Mission Reveal (3 escalating levels, driven by the scanned
+  environment) with voice + haptics.
+- New screens: `mission/environment.tsx`, `mission/scan.tsx`, `mission/analyzing-env.tsx`,
+  `mission/quests.tsx`. Reveal/Camera/Analyzing/Success rewired to quest model; Success returns
+  to the quest map; Go Again / Play Again restart at Environment.
+- Verified (iteration_5): 28/28 backend + full scan-first loop on web. Real LLM produced clearly
+  Office-specific quests ("Screen Serene", "Tall Green Tower", "Colorful Thoughts").
