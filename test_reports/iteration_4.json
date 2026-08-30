@@ -1,0 +1,35 @@
+{
+  "summary": "Scavvy UX polish PASS (frontend only, web preview 390x844). Fresh onboarding -> Home renders: 'Hey, Nishant', 'Detective · Level 3', profile-icon top-right, mascot + speech bubble, TODAY'S ADVENTURE with vector icons (time/flag/flash), START ADVENTURE, YOUR STATS 3 cards (flame 4 / star 27 / compass Lv 3), and LAST TIME card 'Saturday Night +280 XP'. Tap last-time-card -> Adventure Detail (Saturday Night) with 3 missions, stats 3/280/18, play-again/share/back-adventures/detail-back all visible. detail-back -> Adventures shows header 'Adventures · 5 sessions · 1,570 XP earned' and all 5 cards (saturday-night, city-explorer, kitchen-investigation, rainy-tuesday, morning-scout). Tap adventure-card-city-explorer -> City Explorer detail with 5 missions. back-adventures-button returns. Tab-profile -> Profile shows 'Hey, Nishant', 'Detective · Level 3', XP 420 / 600 XP progress bar, 3 stat cards (star missions 27 / flame streak 4 / map adventures 5), FAVOURITE ADVENTURE 'RANDOM', 'My Achievements' list with unlocked (green check on Sharp Eyes) and LOCKED pill + orange progress on locked cards. Tap achievement-sharp-eyes -> Achievement Detail (title, desc, 10/10 UNLOCKED, +100 XP reward), achievement-back returns. Tap achievement-streak-keeper -> Detail shows 4 / 7 progress, +150 XP reward, achievement-back-button returns. reset-button opens modal 'Reset demo data?'; cancel-reset-button dismisses; confirm-reset-button resets stats to defaults (streak 4, missions 27, adventures 5 - all verified back on Home). START ADVENTURE from Home successfully navigates to Mission Reveal (find-it-button visible), confirming core loop entry still works. Tab bar: tab-home / tab-adventures / tab-profile all switch screens with active state, no dead buttons observed, every detail screen has a back path (detail-back + back-adventures-button; achievement-back + achievement-back-button), no emoji in functional UI, mascot images render on Home, Adventure Detail, Profile, Achievement Detail. Only pre-existing non-blocking RN Web warnings (shadow* deprecated, props.pointerEvents deprecated, useNativeDriver on web) as in iteration_3. Zero pageerrors during the run.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "Deprecated shadow.* style props (pre-existing)", "issue": "'shadow*' style props are deprecated on RN Web (use boxShadow). Reference: /app/frontend/src/theme.ts shadow.soft/card/button used across GlassTabBar.tsx and screens"},
+      {"component": "Deprecated props.pointerEvents (pre-existing)", "issue": "'props.pointerEvents is deprecated. Use style.pointerEvents'. Reference: /app/frontend/src/components/GlassTabBar.tsx, /app/frontend/app/mission/camera.tsx"},
+      {"component": "useNativeDriver on web (pre-existing)", "issue": "'useNativeDriver is not supported because the native animated module is missing.' Expected on web; consider Platform.OS gate."}
+    ]
+  },
+  "test_report_links": ["/app/test_reports/pytest/pytest_results.xml (previous, backend skipped)"],
+  "action_items": [
+    "(Optional polish, carried) Migrate theme shadow.* to boxShadow for RN Web.",
+    "(Optional polish, carried) Move pointerEvents to style.pointerEvents in GlassTabBar.tsx and camera.tsx.",
+    "(Optional polish, carried) Gate useNativeDriver by Platform.OS !== 'web'."
+  ],
+  "critical_code_review_comments": [
+    "home.tsx: profile-icon, last-time-card, todays-adventure-card, start-adventure-button all wired with testIDs. Icons use Ionicons (no emoji). onStart correctly awaits startAdventure() before router.push('/mission/reveal').",
+    "adventures.tsx: header uses TOTAL_SESSIONS and TOTAL_XP_EARNED derived from DEMO_ADVENTURES (data-driven). Each card testID adventure-card-${a.id}. Icons via Ionicons.",
+    "profile.tsx: XP band capped at LEVEL_SIZE=600; inLevel = xp % LEVEL_SIZE (420 for seed xp=2820). Reset modal is a controlled RN Modal with confirm-reset-button / cancel-reset-button. Achievements loop renders unlocked check-circle vs locked pill + progress bar.",
+    "adventure/[id].tsx: detail-back and back-adventures-button both call router.replace('/(tabs)/adventures') — safe. play-again-button correctly resetAdventure() then startAdventure() then replace('/mission/reveal'). share-adventure-button uses Share.share with catch.",
+    "achievement/[id].tsx: achievement-back and achievement-back-button both router.replace('/(tabs)/profile'). Confetti only on unlocked. mascot pose switches celebrating/curious.",
+    "demo.ts: 5 adventures; TOTAL_XP_EARNED = 280+460+250+390+190 = 1570 (matches UI). 6 achievements with correct unlocked flags."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "skipped (frontend-only per request)", "frontend": "100% (onboarding + Home + Adventures list + 2 Adventure Detail screens + Profile + 2 Achievement Detail screens + reset modal cancel & confirm + tab switches + START ADVENTURE -> Mission Reveal)"},
+  "seed_data_creation": "None. Fresh localStorage.clear() then onboarded 'Nishant'. Seed progress (streak 4 / missions 27 / xp 2820 / adventures 5) laid down by saveProfile as designed.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend URL: EXPO_PUBLIC_BACKEND_URL from /app/frontend/.env. Viewport 390x844. Because expo-router keeps prior screens mounted on web, always use `page.locator(sel).last` for stacked testIDs (tab-*, find-it-button, web-demo-find-button, next-mission-button, try-again-button, reset-button, achievement-*, detail-back, achievement-back, back-adventures-button). Fresh onboarding required (localStorage.clear + full onboarding flow). Full E2E of the polish pass (Home / Adventures list / Adventure Detail / Profile / Achievement Detail / Reset modal / core loop entry) passes cleanly.",
+  "rca_of_issue": "N/A - polish pass PASS."
+}

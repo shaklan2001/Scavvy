@@ -14,6 +14,7 @@ export type Progress = {
   streak: number;
   totalMissions: number;
   xp: number;
+  adventures: number;
 };
 
 export type ActiveMission = Mission & {
@@ -34,7 +35,7 @@ const PROGRESS_KEY = "scavvy:progress:v1";
 
 // Seeded starting stats so the very first home screen feels alive (matches
 // the product mock: 4 day streak / 27 missions / Explorer Level 3).
-const SEED_PROGRESS: Progress = { streak: 4, totalMissions: 27, xp: 2700 };
+const SEED_PROGRESS: Progress = { streak: 4, totalMissions: 27, xp: 2820, adventures: 5 };
 
 export function levelFromMissions(total: number) {
   return Math.floor(total / 10) + 1;
@@ -60,6 +61,7 @@ type Ctx = {
   swapMission: (index: number, mission: Mission) => void;
   resetAdventure: () => void;
   addStreak: () => Promise<void>;
+  resetDemo: () => Promise<void>;
   logout: () => Promise<void>;
 };
 
@@ -161,6 +163,12 @@ export function ScavvyProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  const resetDemo = useCallback(async () => {
+    setProgress(SEED_PROGRESS);
+    await storage.setItem(PROGRESS_KEY, SEED_PROGRESS);
+    setAdventure(null);
+  }, []);
+
   const logout = useCallback(async () => {
     await storage.removeItem(PROFILE_KEY);
     await storage.removeItem(PROGRESS_KEY);
@@ -182,6 +190,7 @@ export function ScavvyProvider({ children }: { children: React.ReactNode }) {
         swapMission,
         resetAdventure,
         addStreak,
+        resetDemo,
         logout,
       }}
     >

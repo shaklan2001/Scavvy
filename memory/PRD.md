@@ -85,3 +85,19 @@ Missing poses fall back to the closest available one.
   web preview (native system tabs have no web equivalent). Tab-screen bottom padding is
   platform-gated (web clears the floating bar; native relies on the system bar + auto insets).
 - Verified: web regression (iteration_3) passes — tab switching + full adventure loop intact.
+
+## Home / Adventures / Profile UX Overhaul (2026-08-30)
+- **Data-driven demo model** (`src/data/demo.ts`): 5 adventures (with per-mission prompts,
+  reactions, XP), 6 achievements (unlocked + locked w/ progress), level bands (600 XP).
+- **Home**: header (name + Title·Level + mascot avatar), mascot + speech bubble, TODAY'S
+  ADVENTURE card (vector icons), YOUR STATS 3 cards, tappable LAST TIME card → Adventure Detail.
+- **Adventures**: "N sessions · X XP earned" header + rich cards (date/title/summary/pills/
+  chevron) → **Adventure Detail** (`app/adventure/[id].tsx`) with per-mission breakdown +
+  PLAY AGAIN / SHARE / BACK.
+- **Profile**: avatar + XP progress bar (level band), 3 stat cards, Favourite Adventure,
+  **My Achievements** (unlocked white + green check / locked cream + orange progress) →
+  **Achievement Detail** (`app/achievement/[id].tsx`) with celebrating mascot + reward;
+  **RESET DEMO DATA** with a confirmation modal (`resetDemo` in context).
+- All emoji removed from functional UI (vector Ionicons everywhere).
+- **Haptic on tab switch** via `useFocusEffect` selection haptic in each tab screen (native).
+- Verified end-to-end (iteration_4): all navigation flows + core loop regression pass.
