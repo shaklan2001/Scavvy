@@ -7,6 +7,7 @@ import { CreamBg } from "@/src/components/Bg";
 import { ScavvyMascot } from "@/src/components/ScavvyMascot";
 import { Card, SpeechBubble, T } from "@/src/components/ui";
 import { colors, radius, spacing } from "@/src/theme";
+import { TAB_BAR_HEIGHT } from "@/src/components/GlassTabBar";
 import { STYLES } from "@/src/data/content";
 import { useScavvy } from "@/src/state/ScavvyContext";
 
@@ -37,7 +38,7 @@ export default function Adventures() {
       </View>
 
       <ScrollView
-        contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingBottom: spacing.xxl }}
+        contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingBottom: insets.bottom + TAB_BAR_HEIGHT + spacing.xl }}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.mascotRow}>

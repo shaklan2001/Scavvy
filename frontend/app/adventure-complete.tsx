@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Animated, ScrollView, Share, StyleSheet, View } from "react-native";
+import { Animated, Pressable, ScrollView, Share, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -22,7 +22,7 @@ const TRAIT_META = [
 export default function AdventureComplete() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { adventure, profile, progress, addStreak, resetAdventure } = useScavvy();
+  const { adventure, profile, progress, addStreak, resetAdventure, startAdventure } = useScavvy();
 
   const done = adventure?.missions.filter((m) => m.status === "done").length ?? 3;
   const totalMissions = adventure?.missions.length ?? 3;
@@ -36,7 +36,7 @@ export default function AdventureComplete() {
     if (ran.current) return;
     ran.current = true;
     addStreak();
-    voice.play("adventureComplete");
+    voice.play("adventure_complete");
     Animated.spring(pop, { toValue: 1, useNativeDriver: true, friction: 5 }).start();
     ai.adventureSummary({
       name: profile?.name || "Explorer",
@@ -47,22 +47,38 @@ export default function AdventureComplete() {
     }).then((r) => setSummary({ summary: r.summary, traits: r.traits }));
   }, []);
 
+  useEffect(() => () => voice.stop(), []);
+
   const onShare = () => {
     Share.share({
-      message: `I just completed a Scavvy adventure 🦝 — ${done}/${totalMissions} missions and ${totalXp} XP. Your world is the game!`,
+      message: `I just completed a Scavvy adventure — ${done}/${totalMissions} missions and ${totalXp} XP. Your world is the game!`,
     }).catch(() => {});
   };
 
-  const goAgain = () => {
+  const goHome = () => {
+    voice.stop();
     resetAdventure();
     router.replace("/(tabs)/home");
+  };
+
+  const goAgain = async () => {
+    voice.stop();
+    resetAdventure();
+    await startAdventure();
+    router.replace("/mission/reveal");
   };
 
   return (
     <DarkBg>
       <Confetti count={40} />
+      <Pressable testID="complete-home-button" onPress={goHome} style={[styles.backBtn, { top: insets.top + 8 }]} hitSlop={10}>
+        <Ionicons name="chevron-back" size={22} color="#FFF6E6" />
+        <T weight="bold" size={15} color="#FFF6E6" style={{ marginLeft: 2 }}>
+          Home
+        </T>
+      </Pressable>
       <ScrollView
-        contentContainerStyle={{ paddingTop: insets.top + 26, paddingBottom: insets.bottom + 24, paddingHorizontal: spacing.xl }}
+        contentContainerStyle={{ paddingTop: insets.top + 52, paddingBottom: insets.bottom + 24, paddingHorizontal: spacing.xl }}
         showsVerticalScrollIndicator={false}
       >
         <Animated.View style={{ alignItems: "center", transform: [{ scale: pop.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] }) }] }}>
@@ -83,7 +99,10 @@ export default function AdventureComplete() {
             <T weight="medium" size={11} color="#C9B79E">XP</T>
           </View>
           <View style={styles.statBox}>
-            <T weight="extrabold" size={22} color="#fff">🔥 +1</T>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <Ionicons name="flame" size={20} color={colors.orange} />
+              <T weight="extrabold" size={22} color="#fff" style={{ marginLeft: 4 }}>+1</T>
+            </View>
             <T weight="medium" size={11} color="#C9B79E">streak</T>
           </View>
         </View>
@@ -114,6 +133,15 @@ export default function AdventureComplete() {
 }
 
 const styles = StyleSheet.create({
+  backBtn: {
+    position: "absolute",
+    left: spacing.base,
+    zIndex: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 6,
+    paddingRight: 10,
+  },
   statsRow: { flexDirection: "row", justifyContent: "space-between", marginTop: spacing.xl, gap: spacing.md },
   statBox: {
     flex: 1,

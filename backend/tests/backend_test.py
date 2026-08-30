@@ -134,3 +134,23 @@ class TestSummary:
             assert r.status_code == 200
             j = r.json()
             assert set(j["traits"].keys()) == {"explorer", "observation", "curiosity", "chaos"}
+
+
+# --- Voice fallback (ElevenLabs not configured -> 204) ----------------------
+class TestVoiceFallback:
+    """When ELEVENLABS_API_KEY is not set, /api/voice must return 204 so the
+    frontend falls back to bundled OpenAI-TTS clips."""
+
+    @pytest.mark.parametrize("line", [
+        "success", "mission_intro", "failure", "adventure_complete"
+    ])
+    def test_known_lines_return_204_without_key(self, s, line):
+        r = s.get(f"{API}/voice", params={"line": line}, timeout=15)
+        assert r.status_code == 204, f"Expected 204 for line={line}, got {r.status_code} body={r.text[:200]}"
+        # 204 = No Content, body must be empty
+        assert r.content == b"" or r.text == ""
+
+    def test_unknown_line_returns_204(self, s):
+        r = s.get(f"{API}/voice", params={"line": "totally_bogus_line"}, timeout=15)
+        assert r.status_code == 204
+        assert r.content == b""

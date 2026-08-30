@@ -112,7 +112,7 @@ export default function MissionCamera() {
       {/* top mission strip */}
       <View style={[styles.topStrip, { paddingTop: insets.top + 10 }]}>
         <Pressable testID="camera-back" onPress={() => router.back()} hitSlop={12} style={styles.iconBtn}>
-          <Ionicons name="chevron-back" size={24} color="#fff" />
+          <Ionicons name="close" size={24} color="#fff" />
         </Pressable>
         <View style={styles.missionInfo}>
           <T weight="bold" size={11} color={colors.yellow} style={{ letterSpacing: 1 }}>

@@ -32,11 +32,14 @@ export default function MissionReveal() {
         ])
       ))
     ).start();
-    voice.play("missionIntro");
+    voice.play("mission_intro");
   }, []);
 
+  useEffect(() => {
+    if (!adventure) router.replace("/(tabs)/home");
+  }, [adventure]);
+
   if (!adventure) {
-    router.replace("/(tabs)/home");
     return null;
   }
 
@@ -48,7 +51,10 @@ export default function MissionReveal() {
     <AdventureBg>
       <View style={[styles.container, { paddingTop: insets.top + 20 }]}>
         <Pressable testID="reveal-back" onPress={() => router.replace("/(tabs)/home")} hitSlop={12} style={styles.back}>
-          <Ionicons name="chevron-back" size={26} color={colors.charcoal} />
+          <Ionicons name="chevron-back" size={24} color={colors.charcoal} />
+          <T weight="bold" size={15} color={colors.charcoal} style={{ marginLeft: 2 }}>
+            Back
+          </T>
         </Pressable>
 
         <Animated.View style={{ opacity: fade, transform: [{ translateY: slide }], marginTop: spacing.xxl }}>
@@ -93,7 +99,7 @@ export default function MissionReveal() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: spacing.xl },
-  back: { position: "absolute", left: spacing.base, top: 0, marginTop: 0, padding: spacing.sm, zIndex: 5 },
+  back: { position: "absolute", left: spacing.base, top: 0, marginTop: 0, padding: spacing.sm, zIndex: 5, flexDirection: "row", alignItems: "center" },
   badge: {
     flexDirection: "row",
     alignItems: "center",

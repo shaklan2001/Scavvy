@@ -58,3 +58,20 @@ Missing poses fall back to the closest available one.
 1. Integrate OpenAI Vision for real photo validation.
 2. Integrate ElevenLabs voice for Scavvy reactions.
 3. Adventure history + shareable result card image.
+
+## Polish + Reliability Pass (2026-08-30)
+- Replaced all functional-UI emoji with consistent Ionicons (flame/star/compass, star XP,
+  volume for audio, chevrons). Removed 👋/👀/🎉/🔊/🔥 from chrome.
+- Premium glassmorphism floating tab bar (`GlassTabBar` + expo-blur): rounded, translucent,
+  active orange pill; tab bar hidden on immersive mission screens.
+- In-app navigation: Back "Home" on Success + Adventure Complete, "Back" on Mission Reveal,
+  X close on Camera. GO AGAIN now starts a brand-new adventure → Reveal.
+- Mission Success reward reveal: staged animation (mascot pop → THAT COUNTS! → animated XP
+  counter → MISSION COMPLETE) + confetti; captured image in a 24px rounded card.
+- **Play Scavvy is audible**: `voice` service (expo-audio) plays real speech. Runtime tries
+  backend `GET /api/voice` (ElevenLabs when `ELEVENLABS_API_KEY` set) and falls back to 4
+  bundled OpenAI-TTS clips (mission_intro/success/failure/adventure_complete) so it always
+  makes sound. Single-playback guard, "SCAVVY IS SPEAKING…" state + speaker pulse, tappable
+  speech bubble. Auto-plays on reveal/success/failure/complete.
+- Verified: backend 14/14 tests pass; flows A–D pass end-to-end on web preview.
+- Env added (backend/.env): `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID` (empty → fallback).

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { StyleSheet, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -9,6 +9,7 @@ import { Button, T } from "@/src/components/ui";
 import { colors, radius, spacing } from "@/src/theme";
 import { useScavvy } from "@/src/state/ScavvyContext";
 import { ai } from "@/src/services/ai";
+import { voice } from "@/src/services/voice";
 
 export default function Failure() {
   const router = useRouter();
@@ -20,12 +21,19 @@ export default function Failure() {
   const idx = parseInt(index, 10) || 0;
   const nextAttempt = (parseInt(attempt, 10) || 1) + 1;
 
+  useEffect(() => {
+    voice.play("failure");
+    return () => voice.stop();
+  }, []);
+
   const tryAgain = () => {
+    voice.stop();
     router.replace({ pathname: "/mission/camera", params: { index: String(idx), attempt: String(nextAttempt) } });
   };
 
   const makeEasier = async () => {
     if (busy) return;
+    voice.stop();
     setBusy(true);
     try {
       const mission = adventure?.missions[idx];

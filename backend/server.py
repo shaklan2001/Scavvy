@@ -1,4 +1,5 @@
 from fastapi import FastAPI, APIRouter
+from fastapi import Response
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -248,6 +249,43 @@ async def adventure_summary(req: SummaryReq):
         "total_xp": req.total_xp,
         "streak_delta": 1,
     }
+
+
+ELEVEN_KEY = os.environ.get("ELEVENLABS_API_KEY", "").strip()
+ELEVEN_VOICE = os.environ.get("ELEVENLABS_VOICE_ID", "").strip() or "21m00Tcm4Tlm"
+
+VOICE_TEXT = {
+    "mission_intro": "Alright explorer. Your next mission starts now. Eyes open.",
+    "success": "That counts! Nice work. Let's make the next one harder.",
+    "failure": "Hmm, nice try. I don't think that's quite what I was looking for.",
+    "adventure_complete": "You did it! Three missions complete. Not bad, detective.",
+}
+
+
+@api_router.get("/voice")
+async def voice(line: str):
+    """Returns ElevenLabs-generated audio when a key is configured, otherwise
+    204 so the app falls back to its bundled Scavvy voice clips."""
+    text = VOICE_TEXT.get(line)
+    if not text:
+        return Response(status_code=204)
+    if not ELEVEN_KEY:
+        return Response(status_code=204)
+    try:
+        import base64
+        from elevenlabs.client import ElevenLabs
+        client = ElevenLabs(api_key=ELEVEN_KEY)
+        audio_iter = client.text_to_speech.convert(
+            text=text,
+            voice_id=ELEVEN_VOICE,
+            model_id="eleven_multilingual_v2",
+        )
+        data = b"".join(audio_iter)
+        b64 = base64.b64encode(data).decode()
+        return {"audio": f"data:audio/mpeg;base64,{b64}", "caption": text}
+    except Exception as e:
+        logger.warning(f"ElevenLabs TTS unavailable, using fallback: {e}")
+        return Response(status_code=204)
 
 
 app.include_router(api_router)

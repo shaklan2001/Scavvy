@@ -7,6 +7,7 @@ import { CreamBg } from "@/src/components/Bg";
 import { ScavvyMascot, MascotBlob } from "@/src/components/ScavvyMascot";
 import { Button, Card, T } from "@/src/components/ui";
 import { colors, radius, spacing } from "@/src/theme";
+import { TAB_BAR_HEIGHT } from "@/src/components/GlassTabBar";
 import { PERSONALITIES } from "@/src/data/content";
 import { useScavvy, levelFromMissions, levelTitle } from "@/src/state/ScavvyContext";
 
@@ -26,7 +27,7 @@ export default function Profile() {
   return (
     <CreamBg decorate={false}>
       <ScrollView
-        contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingTop: insets.top + 16, paddingBottom: spacing.xxl }}
+        contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingTop: insets.top + 16, paddingBottom: insets.bottom + TAB_BAR_HEIGHT + spacing.xl }}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.hero}>
@@ -46,19 +47,19 @@ export default function Profile() {
 
         <Card style={styles.statsCard} testID="profile-stats">
           <View style={styles.stat}>
-            <T size={24}>🔥</T>
+            <Ionicons name="flame" size={24} color={colors.orange} />
             <T weight="extrabold" size={20} color={colors.charcoal}>{progress.streak}</T>
             <T weight="medium" size={11} color={colors.brown}>day streak</T>
           </View>
           <View style={styles.vline} />
           <View style={styles.stat}>
-            <T size={24}>⭐</T>
+            <Ionicons name="star" size={24} color={colors.yellow} />
             <T weight="extrabold" size={20} color={colors.charcoal}>{progress.totalMissions}</T>
             <T weight="medium" size={11} color={colors.brown}>missions</T>
           </View>
           <View style={styles.vline} />
           <View style={styles.stat}>
-            <T size={24}>🧭</T>
+            <Ionicons name="compass" size={24} color={colors.green} />
             <T weight="extrabold" size={20} color={colors.charcoal}>Lv {level}</T>
             <T weight="medium" size={11} color={colors.brown}>{levelTitle(profile?.personality || "explorer")}</T>
           </View>

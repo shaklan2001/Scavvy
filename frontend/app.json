@@ -64,7 +64,8 @@
         {
           "locationWhenInUsePermission": "Create adventures where you explore"
         }
-      ]
+      ],
+      "expo-audio"
     ],
     "experiments": {
       "typedRoutes": true

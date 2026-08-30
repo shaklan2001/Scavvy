@@ -7,6 +7,7 @@ import { CreamBg } from "@/src/components/Bg";
 import { ScavvyMascot } from "@/src/components/ScavvyMascot";
 import { Button, Card, SpeechBubble, T } from "@/src/components/ui";
 import { colors, radius, shadow, spacing } from "@/src/theme";
+import { TAB_BAR_HEIGHT } from "@/src/components/GlassTabBar";
 import { useScavvy, levelFromMissions, levelTitle } from "@/src/state/ScavvyContext";
 
 function MetaChip({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: string }) {
@@ -20,11 +21,11 @@ function MetaChip({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: 
   );
 }
 
-function ProgressStat({ icon, value, label }: { icon: string; value: string; label: string }) {
+function ProgressStat({ icon, color, value, label }: { icon: keyof typeof Ionicons.glyphMap; color: string; value: string; label: string }) {
   return (
     <View style={styles.progressStat}>
-      <T size={22}>{icon}</T>
-      <T weight="extrabold" size={18} color={colors.charcoal} style={{ marginTop: 2 }}>
+      <Ionicons name={icon} size={22} color={color} />
+      <T weight="extrabold" size={18} color={colors.charcoal} style={{ marginTop: 4 }}>
         {value}
       </T>
       <T weight="medium" size={11} color={colors.brown} center>
@@ -62,7 +63,7 @@ export default function Home() {
             Welcome back,
           </T>
           <T weight="extrabold" size={24} color={colors.charcoal}>
-            Hey, {name} 👋
+            Hey, {name}
           </T>
         </View>
         <Pressable testID="profile-icon" onPress={() => router.push("/(tabs)/profile")} style={styles.avatar}>
@@ -71,14 +72,14 @@ export default function Home() {
       </View>
 
       <ScrollView
-        contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingBottom: spacing.xxl }}
+        contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingBottom: insets.bottom + TAB_BAR_HEIGHT + spacing.xl }}
         showsVerticalScrollIndicator={false}
       >
         {/* Mascot + speech bubble */}
         <View style={styles.mascotRow}>
           <ScavvyMascot pose="welcome" size={130} anim="float" testID="home-mascot" />
           <View style={{ flex: 1, marginLeft: spacing.sm }}>
-            <SpeechBubble testID="home-bubble" text="Psst... I found something. 👀" />
+            <SpeechBubble testID="home-bubble" text="Psst... I found something." />
           </View>
         </View>
 
@@ -119,11 +120,11 @@ export default function Home() {
           YOUR PROGRESS
         </T>
         <Card style={styles.progressCard} testID="progress-card">
-          <ProgressStat icon="🔥" value={`${progress.streak}`} label="day streak" />
+          <ProgressStat icon="flame" color={colors.orange} value={`${progress.streak}`} label="day streak" />
           <View style={styles.vline} />
-          <ProgressStat icon="⭐" value={`${progress.totalMissions}`} label="missions" />
+          <ProgressStat icon="star" color={colors.yellow} value={`${progress.totalMissions}`} label="missions" />
           <View style={styles.vline} />
-          <ProgressStat icon="🧭" value={`Lv ${level}`} label={levelTitle(profile?.personality || "explorer")} />
+          <ProgressStat icon="compass" color={colors.green} value={`Lv ${level}`} label={levelTitle(profile?.personality || "explorer")} />
         </Card>
       </ScrollView>
     </CreamBg>
