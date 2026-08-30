@@ -1,13 +1,9 @@
 import crypto from 'node:crypto';
-import express, { type Express, type Request } from 'express';
-import multer from 'multer';
+import express, { type Express } from 'express';
 import { z } from 'zod';
-import { AdventureService } from './domain/adventure-service.js';
-import { QuestService } from './domain/quest-service.js';
-import type { ScavvyAiProvider, ScavvyStore, VoiceProvider } from './domain/ports.js';
-import type { EnvironmentContext, ImageInput, Quest } from './domain/types.js';
-import { errorHandler, HttpError } from './http/errors.js';
-import { hintLevelSchema, locationTypeSchema } from './domain/validation.js';
+import type { ScavvyAiProvider, VoiceProvider } from './domain/ports.js';
+import type { EnvironmentContext, Quest } from './domain/types.js';
+import { errorHandler } from './http/errors.js';
 import {
   analyzeReferenceMission,
   buildReferenceMissions,
@@ -24,10 +20,8 @@ import {
 } from './compat/reference-api.js';
 
 export interface AppDependencies {
-  store: ScavvyStore;
   ai: ScavvyAiProvider;
   voice: VoiceProvider;
-  maxUploadBytes?: number;
 }
 
 const referenceEnvironmentSchema = z.object({
@@ -38,17 +32,6 @@ const referenceEnvironmentSchema = z.object({
   possibleQuestTargets: z.array(z.string()),
   possibleHints: z.array(z.string()),
 }).partial();
-
-function requestImages(request: Request): Express.Multer.File[] {
-  return Array.isArray(request.files) ? request.files : [];
-}
-
-function toImageInput(file: Express.Multer.File): ImageInput {
-  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype)) {
-    throw new HttpError(400, 'Only JPEG, PNG, and WebP images are accepted');
-  }
-  return { buffer: file.buffer, mimetype: file.mimetype, originalname: file.originalname };
-}
 
 function temporaryReferenceQuest(title: string): Quest {
   return {
@@ -65,12 +48,6 @@ function temporaryReferenceQuest(title: string): Quest {
 
 export function createApp(dependencies: AppDependencies): Express {
   const app = express();
-  const adventureService = new AdventureService(dependencies.store, dependencies.ai);
-  const questService = new QuestService(dependencies.store, dependencies.ai, dependencies.voice);
-  const upload = multer({
-    storage: multer.memoryStorage(),
-    limits: { files: 3, fileSize: dependencies.maxUploadBytes ?? 5 * 1024 * 1024 },
-  });
 
   app.use(express.json({ limit: '20mb' }));
   app.use((_request, response, next) => {
@@ -88,8 +65,8 @@ export function createApp(dependencies: AppDependencies): Express {
 
   app.get('/api/health', (_request, response) => response.json({ status: 'ok' }));
 
-  // Compatibility endpoints let the imported Expo client use its original API
-  // contract while the plural resource routes below remain the durable API.
+  // These endpoints are stateless: the guest client supplies its current
+  // mission and environment context with every request.
   app.get('/api/', (_request, response) => response.json({ message: 'Scavvy is awake and sniffing around.', ok: true }));
 
   app.post('/api/adventure/start', (request, response) => {
@@ -232,32 +209,6 @@ export function createApp(dependencies: AppDependencies): Express {
       }
     }
     response.json({ hint: referenceHint(body.environment, body.hint_level) });
-  });
-
-  app.post('/api/adventures', async (request, response) => {
-    const body = z.object({ locationType: locationTypeSchema }).parse(request.body);
-    const adventure = await adventureService.create(body.locationType);
-    response.status(201).json({ adventure });
-  });
-
-  app.get('/api/adventures/:id', async (request, response) => {
-    response.json(await adventureService.get(request.params.id as string));
-  });
-
-  app.post('/api/adventures/:id/scan', upload.array('images', 3), async (request, response) => {
-    const files = requestImages(request);
-    const images = files.map(toImageInput);
-    response.json(await adventureService.scan(request.params.id as string, images));
-  });
-
-  app.post('/api/quests/:id/verify', upload.single('image'), async (request, response) => {
-    if (!request.file) throw new HttpError(400, 'One verification image is required');
-    response.json(await questService.verify(request.params.id as string, toImageInput(request.file)));
-  });
-
-  app.post('/api/quests/:id/hint', async (request, response) => {
-    const body = z.object({ level: hintLevelSchema, voice: z.boolean().default(false) }).parse(request.body);
-    response.json(await questService.hint(request.params.id as string, body.level, body.voice));
   });
 
   app.post('/api/voice', async (request, response) => {
