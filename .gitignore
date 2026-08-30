@@ -86,3 +86,7 @@ android-sdk/
 credentials.json
 *.key
 .credentials
+
+# Supabase CLI scratch state for the Node backend.
+backend/supabase/.branches/
+backend/supabase/.temp/
