@@ -69,9 +69,17 @@ alter table public.hints enable row level security;
 
 create or replace function public.increment_adventure_xp(adventure_id uuid, xp_amount integer)
 returns void
-language sql
+language plpgsql
 security definer
 set search_path = public
 as $$
+begin
+  if xp_amount <= 0 then
+    raise exception 'xp_amount must be positive';
+  end if;
   update public.adventures set xp = xp + xp_amount where id = adventure_id;
+end;
 $$;
+
+revoke all on function public.increment_adventure_xp(uuid, integer) from public;
+grant execute on function public.increment_adventure_xp(uuid, integer) to service_role;
