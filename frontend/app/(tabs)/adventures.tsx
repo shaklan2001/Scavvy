@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, View, Platform } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -38,7 +38,7 @@ export default function Adventures() {
       </View>
 
       <ScrollView
-        contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingBottom: insets.bottom + TAB_BAR_HEIGHT + spacing.xl }}
+        contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingBottom: Platform.OS === "web" ? insets.bottom + TAB_BAR_HEIGHT + spacing.xl : spacing.xxl }}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.mascotRow}>

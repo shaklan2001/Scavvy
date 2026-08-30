@@ -75,3 +75,13 @@ Missing poses fall back to the closest available one.
   speech bubble. Auto-plays on reveal/success/failure/complete.
 - Verified: backend 14/14 tests pass; flows A–D pass end-to-end on web preview.
 - Env added (backend/.env): `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID` (empty → fallback).
+
+## Native Tabs (2026-08-30)
+- Bottom tabs now use **Expo Router native tabs** (`expo-router/unstable-native-tabs`) on
+  device: `app/(tabs)/_layout.tsx` renders `NativeTabs` with SF Symbols (house/safari/
+  person.crop.circle) on iOS — Liquid Glass on iOS 26, native blur on 18+ — and Ionicons via
+  `VectorIcon` on Android (Material). Brand tint = orange.
+- `app/(tabs)/_layout.web.tsx` keeps the custom floating glassmorphism `GlassTabBar` for the
+  web preview (native system tabs have no web equivalent). Tab-screen bottom padding is
+  platform-gated (web clears the floating bar; native relies on the system bar + auto insets).
+- Verified: web regression (iteration_3) passes — tab switching + full adventure loop intact.

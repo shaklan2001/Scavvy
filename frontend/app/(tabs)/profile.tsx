@@ -1,5 +1,5 @@
 import React from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, View, Platform } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -27,7 +27,7 @@ export default function Profile() {
   return (
     <CreamBg decorate={false}>
       <ScrollView
-        contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingTop: insets.top + 16, paddingBottom: insets.bottom + TAB_BAR_HEIGHT + spacing.xl }}
+        contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingTop: insets.top + 16, paddingBottom: Platform.OS === "web" ? insets.bottom + TAB_BAR_HEIGHT + spacing.xl : spacing.xxl }}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.hero}>

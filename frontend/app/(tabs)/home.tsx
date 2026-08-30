@@ -1,12 +1,12 @@
 import React, { useState } from "react";
-import { ScrollView, StyleSheet, View, Pressable, ActivityIndicator } from "react-native";
+import { ScrollView, StyleSheet, View, Pressable, ActivityIndicator, Platform } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { CreamBg } from "@/src/components/Bg";
 import { ScavvyMascot } from "@/src/components/ScavvyMascot";
 import { Button, Card, SpeechBubble, T } from "@/src/components/ui";
-import { colors, radius, shadow, spacing } from "@/src/theme";
+import { colors, radius, spacing } from "@/src/theme";
 import { TAB_BAR_HEIGHT } from "@/src/components/GlassTabBar";
 import { useScavvy, levelFromMissions, levelTitle } from "@/src/state/ScavvyContext";
 
@@ -72,7 +72,7 @@ export default function Home() {
       </View>
 
       <ScrollView
-        contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingBottom: insets.bottom + TAB_BAR_HEIGHT + spacing.xl }}
+        contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingBottom: Platform.OS === "web" ? insets.bottom + TAB_BAR_HEIGHT + spacing.xl : spacing.xxl }}
         showsVerticalScrollIndicator={false}
       >
         {/* Mascot + speech bubble */}
@@ -89,7 +89,7 @@ export default function Home() {
             <View style={styles.liveBadge}>
               <Ionicons name="sparkles" size={13} color="#fff" />
               <T weight="bold" size={11} color="#fff" style={{ marginLeft: 5 }}>
-                TODAY'S ADVENTURE
+                {"TODAY'S ADVENTURE"}
               </T>
             </View>
           </View>
