@@ -4,6 +4,8 @@ import { z } from 'zod';
 import type { ScavvyAiProvider, VoiceProvider } from './domain/ports.js';
 import type { EnvironmentContext, Quest } from './domain/types.js';
 import { errorHandler } from './http/errors.js';
+import { logEvent } from './http/log.js';
+import { corsAndSecurity, DEFAULT_CORS_ORIGINS } from './http/security.js';
 import {
   analyzeReferenceMission,
   buildReferenceMissions,
@@ -22,6 +24,11 @@ import {
 export interface AppDependencies {
   ai: ScavvyAiProvider;
   voice: VoiceProvider;
+}
+
+export interface AppOptions {
+  corsOrigins?: string[];
+  isProduction?: boolean;
 }
 
 const referenceEnvironmentSchema = z.object({
@@ -46,22 +53,51 @@ function temporaryReferenceQuest(title: string): Quest {
   };
 }
 
-export function createApp(dependencies: AppDependencies): Express {
+function requestIdOf(response: { getHeader(name: string): number | string | string[] | undefined }): string | undefined {
+  const value = response.getHeader('x-request-id');
+  return typeof value === 'string' ? value : undefined;
+}
+
+function fieldFrom(error: unknown, key: 'status' | 'code'): string | number | undefined {
+  if (!error || typeof error !== 'object' || !(key in error)) return undefined;
+  const value = (error as Record<string, unknown>)[key];
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && value.length > 0) return value.slice(0, 40);
+  return undefined;
+}
+
+function safeErrorDetail(error: unknown): string | undefined {
+  if (!(error instanceof Error) || !error.message) return undefined;
+  return error.message
+    .replace(/sk-[a-zA-Z0-9_-]+/g, '[redacted]')
+    .replace(/xi-api-key[:\s]*\S+/gi, '[redacted]')
+    .slice(0, 160);
+}
+
+function logAiFallback(route: string, error: unknown, requestId: string | undefined): void {
+  logEvent('warn', 'ai_fallback', {
+    route,
+    requestId,
+    reason: error instanceof Error ? error.name : 'unknown',
+    status: fieldFrom(error, 'status'),
+    code: fieldFrom(error, 'code'),
+    detail: safeErrorDetail(error),
+  });
+}
+
+export function createApp(dependencies: AppDependencies, options: AppOptions = {}): Express {
   const app = express();
+  app.disable('x-powered-by');
 
   app.use(express.json({ limit: '20mb' }));
   app.use((_request, response, next) => {
-    const requestId = crypto.randomUUID();
-    response.setHeader('x-request-id', requestId);
+    response.setHeader('x-request-id', crypto.randomUUID());
     next();
   });
-  app.use((request, response, next) => {
-    response.setHeader('access-control-allow-origin', '*');
-    response.setHeader('access-control-allow-methods', 'GET, POST, OPTIONS');
-    response.setHeader('access-control-allow-headers', 'content-type');
-    if (request.method === 'OPTIONS') return response.sendStatus(204);
-    next();
-  });
+  app.use(corsAndSecurity({
+    allowedOrigins: options.corsOrigins ?? DEFAULT_CORS_ORIGINS,
+    isProduction: options.isProduction ?? false,
+  }));
 
   app.get('/api/health', (_request, response) => response.json({ status: 'ok' }));
 
@@ -122,9 +158,14 @@ export function createApp(dependencies: AppDependencies): Express {
     const line = z.string().optional().parse(request.query.line);
     const caption = line ? referenceVoiceText[line] : undefined;
     if (!caption) return response.sendStatus(204);
-    const audio = await dependencies.voice.synthesize(caption);
-    if (!audio) return response.sendStatus(204);
-    response.json({ audio, caption });
+    try {
+      const audio = await dependencies.voice.synthesize(caption);
+      if (!audio) return response.sendStatus(204);
+      return response.json({ audio, caption });
+    } catch (error) {
+      logAiFallback('/api/voice', error, requestIdOf(response));
+      return response.sendStatus(204);
+    }
   });
 
   app.post('/api/environment/analyze', async (request, response) => {
@@ -133,14 +174,27 @@ export function createApp(dependencies: AppDependencies): Express {
       images: z.array(z.string().max(8 * 1024 * 1024)).max(3).default([]),
     }).parse(request.body);
     const images = decodeReferenceImages(body.images);
+    const requestId = requestIdOf(response);
+    if (body.images.length > 0 && images.length === 0) {
+      logEvent('warn', 'analyze_images_rejected', {
+        requestId,
+        received: body.images.length,
+        decoded: 0,
+      });
+    }
     if (images.length > 0 && typeof dependencies.ai.analyzeEnvironment === 'function') {
       try {
         const environment = await dependencies.ai.analyzeEnvironment(images, mapReferenceLocation(body.location_type));
         return response.json({ environment, source: 'vision' });
-      } catch {
-        // The Expo demo must remain usable when AI credentials or vision are unavailable.
+      } catch (error) {
+        logAiFallback('/api/environment/analyze', error, requestId);
       }
     }
+    logEvent('info', 'analyze_using_mock', {
+      requestId,
+      received: body.images.length,
+      decoded: images.length,
+    });
     response.json({ environment: fallbackReferenceEnvironment(body.location_type), source: 'mock' });
   });
 
@@ -154,8 +208,8 @@ export function createApp(dependencies: AppDependencies): Express {
       try {
         const generated = await dependencies.ai.generateQuests(environment);
         if (generated.length >= 3) return response.json({ quests: toReferenceQuests(generated), source: 'llm' });
-      } catch {
-        // Fall through to the deterministic no-key demo responses.
+      } catch (error) {
+        logAiFallback('/api/environment/quests', error, requestIdOf(response));
       }
     }
     response.json({ quests: fallbackReferenceQuests(environment), source: 'mock' });
@@ -179,12 +233,12 @@ export function createApp(dependencies: AppDependencies): Express {
         );
         return response.json({
           success: result.success,
-          xp: body.mission_title.toLowerCase().includes('medium') ? 120 : 100,
+          xp: body.mission_title.toLowerCase().includes('medium') || body.difficulty?.toLowerCase() === 'medium' ? 120 : 100,
           reasoning: result.explanation,
           scavvy_line: result.scavvyReaction,
         });
-      } catch {
-        // The reference API intentionally keeps its mock result available when AI is unavailable.
+      } catch (error) {
+        logAiFallback('/api/quest/validate', error, requestIdOf(response));
       }
     }
     response.json(validateReferenceQuest(body.mission_title, body.attempt, body.difficulty));
@@ -204,8 +258,8 @@ export function createApp(dependencies: AppDependencies): Express {
           body.hint_level,
         );
         return response.json({ hint });
-      } catch {
-        // Use the original demo fallback when AI is unavailable.
+      } catch (error) {
+        logAiFallback('/api/quest/hint', error, requestIdOf(response));
       }
     }
     response.json({ hint: referenceHint(body.environment, body.hint_level) });
@@ -213,7 +267,12 @@ export function createApp(dependencies: AppDependencies): Express {
 
   app.post('/api/voice', async (request, response) => {
     const body = z.object({ text: z.string().trim().min(1).max(500) }).parse(request.body);
-    response.json({ audioUrl: await dependencies.voice.synthesize(body.text) });
+    try {
+      response.json({ audioUrl: await dependencies.voice.synthesize(body.text) });
+    } catch (error) {
+      logAiFallback('/api/voice', error, requestIdOf(response));
+      response.json({ audioUrl: null });
+    }
   });
 
   app.use(errorHandler);

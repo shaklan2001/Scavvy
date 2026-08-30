@@ -14,7 +14,12 @@
       "infoPlist": {
         "NSCameraUsageDescription": "Scan the world to unlock missions",
         "NSPhotoLibraryUsageDescription": "Share photos to complete missions",
-        "NSLocationWhenInUseUsageDescription": "Create adventures where you explore"
+        "NSLocationWhenInUseUsageDescription": "Create adventures where you explore",
+        "NSLocalNetworkUsageDescription": "Scavvy talks to the adventure API on your Wi-Fi network.",
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true,
+          "NSAllowsArbitraryLoads": true
+        }
       }
     },
     "android": {
@@ -23,6 +28,7 @@
         "backgroundColor": "#FF8A00"
       },
       "edgeToEdgeEnabled": true,
+      "usesCleartextTraffic": true,
       "package": "com.scavvy.app",
       "permissions": [
         "CAMERA",

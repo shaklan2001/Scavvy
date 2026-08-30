@@ -1,10 +1,12 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
+import dayjs from "dayjs";
 import { storage } from "@/src/utils/storage";
 import { ai } from "@/src/services/ai";
-import type { Adventure, EnvironmentContext, Mission, Quest } from "@/src/types";
+import type { Adventure, EnvironmentContext, Mission, Quest, VerificationPhoto } from "@/src/types";
 
 export type Profile = {
   name: string;
+  email: string;
   personality: string;
   style: string;
   cameraAsked: boolean;
@@ -31,12 +33,57 @@ export type ActiveAdventure = {
   currentIndex: number;
 };
 
+export type SavedAdventure = {
+  id: string;
+  title: string;
+  when: string;
+  summary: string;
+  missionsCount: number;
+  xp: number;
+  minutes: number;
+  missions: Array<{ n: number; prompt: string; reaction: string; xp: number }>;
+};
+
 const PROFILE_KEY = "scavvy:profile:v1";
 const PROGRESS_KEY = "scavvy:progress:v1";
+const ADVENTURE_KEY = "scavvy:adventure:v1";
+const ENV_KEY = "scavvy:env:v1";
+const HISTORY_KEY = "scavvy:history:v1";
 
 // Seeded starting stats so the very first home screen feels alive (matches
 // the product mock: 4 day streak / 27 missions / Explorer Level 3).
 const SEED_PROGRESS: Progress = { streak: 4, totalMissions: 27, xp: 2820, adventures: 5 };
+
+function compactAdventure(adventure: ActiveAdventure): ActiveAdventure {
+  return {
+    ...adventure,
+    missions: adventure.missions.map((mission) => ({
+      ...mission,
+      photoUri: mission.photoUri && mission.photoUri.startsWith("data:") ? null : mission.photoUri,
+    })),
+  };
+}
+
+function toSavedAdventure(adventure: ActiveAdventure, env: EnvironmentContext | null): SavedAdventure {
+  const done = adventure.missions.filter((mission) => mission.status === "done");
+  const xp = done.reduce((sum, mission) => sum + (mission.earnedXp || 0), 0);
+  const place = env?.environmentType?.trim();
+  return {
+    id: adventure.id,
+    title: place ? `${place} Adventure` : "Adventure",
+    when: dayjs().format("TODAY · H:mm").toUpperCase(),
+    summary: done[0]?.line || done[0]?.title || "You finished a Scavvy run.",
+    missionsCount: done.length || adventure.missions.length,
+    xp,
+    minutes: Math.max(5, done.length * 4),
+    missions: adventure.missions.map((mission, index) => ({
+      n: index + 1,
+      prompt: mission.title,
+      reaction: mission.line || mission.hint || "",
+      xp: mission.earnedXp || mission.xp || 0,
+    })),
+  };
+}
 
 export function levelFromMissions(total: number) {
   return Math.floor(total / 10) + 1;
@@ -56,10 +103,13 @@ type Ctx = {
   profile: Profile | null;
   progress: Progress;
   adventure: ActiveAdventure | null;
+  adventureHistory: SavedAdventure[];
   env: EnvironmentContext | null;
   scanImages: string[];
+  verificationPhoto: VerificationPhoto | null;
   setEnv: (e: EnvironmentContext | null) => void;
   setScanImages: (imgs: string[]) => void;
+  setVerificationPhoto: (photo: VerificationPhoto | null) => void;
   loadQuests: (missions: Array<Quest | Mission>) => void;
   selectQuest: (index: number) => void;
   saveProfile: (p: Partial<Profile>) => Promise<void>;
@@ -67,6 +117,7 @@ type Ctx = {
   completeMission: (index: number, xp: number, line: string, photoUri: string | null) => Promise<void>;
   swapMission: (index: number, mission: Mission) => void;
   resetAdventure: () => void;
+  finishAdventure: () => Promise<void>;
   addStreak: () => Promise<void>;
   resetDemo: () => Promise<void>;
   logout: () => Promise<void>;
@@ -79,8 +130,11 @@ export function ScavvyProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [progress, setProgress] = useState<Progress>(SEED_PROGRESS);
   const [adventure, setAdventure] = useState<ActiveAdventure | null>(null);
+  const [adventureHistory, setAdventureHistory] = useState<SavedAdventure[]>([]);
   const [env, setEnv] = useState<EnvironmentContext | null>(null);
   const [scanImages, setScanImages] = useState<string[]>([]);
+  const [verificationPhoto, setVerificationPhoto] = useState<VerificationPhoto | null>(null);
+  const persistReady = useRef(false);
 
   const loadQuests = useCallback((missions: Array<Quest | Mission>) => {
     setAdventure({
@@ -106,33 +160,90 @@ export function ScavvyProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
     (async () => {
-      const p = await storage.getItem<Profile | null>(PROFILE_KEY, null);
-      const pr = await storage.getItem<Progress | null>(PROGRESS_KEY, null);
-      if (p) setProfile(p);
-      if (pr) setProgress(pr);
+      const [storedProfile, storedProgress, storedAdventure, storedEnv, storedHistory] = await Promise.all([
+        storage.getItem(PROFILE_KEY, null),
+        storage.getItem(PROGRESS_KEY, null),
+        storage.getItem(ADVENTURE_KEY, null),
+        storage.getItem(ENV_KEY, null),
+        storage.getItem(HISTORY_KEY, null),
+      ]);
+      if (cancelled) return;
+      if (storedProfile && typeof storedProfile === "object") {
+        const record = storedProfile as Partial<Profile>;
+        setProfile({
+          name: record.name || "Explorer",
+          email: record.email || "",
+          personality: record.personality || "explorer",
+          style: record.style || "RANDOM",
+          cameraAsked: Boolean(record.cameraAsked),
+          locationAsked: Boolean(record.locationAsked),
+        });
+      }
+      if (storedProgress && typeof storedProgress === "object") {
+        setProgress(storedProgress as Progress);
+      }
+      if (storedAdventure && typeof storedAdventure === "object") {
+        setAdventure(storedAdventure as ActiveAdventure);
+      }
+      if (storedEnv && typeof storedEnv === "object") {
+        setEnv(storedEnv as EnvironmentContext);
+      }
+      if (Array.isArray(storedHistory)) {
+        setAdventureHistory(storedHistory as SavedAdventure[]);
+      }
+      persistReady.current = true;
       setReady(true);
     })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
+
+  useEffect(() => {
+    if (!persistReady.current) return;
+    if (profile) void storage.setItem(PROFILE_KEY, profile);
+    else void storage.removeItem(PROFILE_KEY);
+  }, [profile]);
+
+  useEffect(() => {
+    if (!persistReady.current) return;
+    void storage.setItem(PROGRESS_KEY, progress);
+  }, [progress]);
+
+  useEffect(() => {
+    if (!persistReady.current) return;
+    if (adventure) void storage.setItem(ADVENTURE_KEY, compactAdventure(adventure));
+    else void storage.removeItem(ADVENTURE_KEY);
+  }, [adventure]);
+
+  useEffect(() => {
+    if (!persistReady.current) return;
+    if (env) void storage.setItem(ENV_KEY, env);
+    else void storage.removeItem(ENV_KEY);
+  }, [env]);
+
+  useEffect(() => {
+    if (!persistReady.current) return;
+    void storage.setItem(HISTORY_KEY, adventureHistory);
+  }, [adventureHistory]);
 
   const saveProfile = useCallback(async (patch: Partial<Profile>) => {
     setProfile((prev) => {
       const base: Profile = prev || {
         name: "Explorer",
+        email: "",
         personality: "explorer",
         style: "RANDOM",
         cameraAsked: false,
         locationAsked: false,
       };
-      const next = { ...base, ...patch };
-      storage.setItem(PROFILE_KEY, next);
-      return next;
+      return { ...base, ...patch };
     });
-    // First time a profile is created, lay down seed progress.
-    const existing = await storage.getItem<Progress | null>(PROGRESS_KEY, null);
+    const existing = await storage.getItem(PROGRESS_KEY, null);
     if (!existing) {
       setProgress(SEED_PROGRESS);
-      await storage.setItem(PROGRESS_KEY, SEED_PROGRESS);
     }
   }, []);
 
@@ -166,11 +277,11 @@ export function ScavvyProvider({ children }: { children: React.ReactNode }) {
         const nextIndex = Math.min(index + 1, missions.length - 1);
         return { ...prev, missions, currentIndex: nextIndex };
       });
-      setProgress((prev) => {
-        const next = { ...prev, totalMissions: prev.totalMissions + 1, xp: prev.xp + xp };
-        storage.setItem(PROGRESS_KEY, next);
-        return next;
-      });
+      setProgress((prev) => ({
+        ...prev,
+        totalMissions: prev.totalMissions + 1,
+        xp: prev.xp + xp,
+      }));
     },
     []
   );
@@ -185,28 +296,53 @@ export function ScavvyProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  const resetAdventure = useCallback(() => setAdventure(null), []);
+  const resetAdventure = useCallback(() => {
+    setAdventure(null);
+    setEnv(null);
+    setScanImages([]);
+    setVerificationPhoto(null);
+  }, []);
+
+  const finishAdventure = useCallback(async () => {
+    if (adventure) {
+      const entry = toSavedAdventure(adventure, env);
+      setAdventureHistory((prev) => [entry, ...prev.filter((item) => item.id !== entry.id)].slice(0, 50));
+      setProgress((prev) => ({ ...prev, adventures: prev.adventures + 1 }));
+    }
+    setAdventure(null);
+    setEnv(null);
+    setScanImages([]);
+    setVerificationPhoto(null);
+  }, [adventure, env]);
 
   const addStreak = useCallback(async () => {
-    setProgress((prev) => {
-      const next = { ...prev, streak: prev.streak + 1 };
-      storage.setItem(PROGRESS_KEY, next);
-      return next;
-    });
+    setProgress((prev) => ({ ...prev, streak: prev.streak + 1 }));
   }, []);
 
   const resetDemo = useCallback(async () => {
     setProgress(SEED_PROGRESS);
-    await storage.setItem(PROGRESS_KEY, SEED_PROGRESS);
     setAdventure(null);
+    setAdventureHistory([]);
+    setEnv(null);
+    setScanImages([]);
+    setVerificationPhoto(null);
   }, []);
 
   const logout = useCallback(async () => {
-    await storage.removeItem(PROFILE_KEY);
-    await storage.removeItem(PROGRESS_KEY);
+    await Promise.all([
+      storage.removeItem(PROFILE_KEY),
+      storage.removeItem(PROGRESS_KEY),
+      storage.removeItem(ADVENTURE_KEY),
+      storage.removeItem(ENV_KEY),
+      storage.removeItem(HISTORY_KEY),
+    ]);
     setProfile(null);
     setProgress(SEED_PROGRESS);
     setAdventure(null);
+    setAdventureHistory([]);
+    setEnv(null);
+    setScanImages([]);
+    setVerificationPhoto(null);
   }, []);
 
   return (
@@ -216,10 +352,13 @@ export function ScavvyProvider({ children }: { children: React.ReactNode }) {
         profile,
         progress,
         adventure,
+        adventureHistory,
         env,
         scanImages,
+        verificationPhoto,
         setEnv,
         setScanImages,
+        setVerificationPhoto,
         loadQuests,
         selectQuest,
         saveProfile,
@@ -227,6 +366,7 @@ export function ScavvyProvider({ children }: { children: React.ReactNode }) {
         completeMission,
         swapMission,
         resetAdventure,
+        finishAdventure,
         addStreak,
         resetDemo,
         logout,

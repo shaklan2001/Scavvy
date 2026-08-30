@@ -8,6 +8,7 @@ import { ScavvyMascot, MascotBlob } from "@/src/components/ScavvyMascot";
 import { T } from "@/src/components/ui";
 import { colors, spacing } from "@/src/theme";
 import { useScavvy } from "@/src/state/ScavvyContext";
+import { peekScanImages } from "@/src/state/pending-scan";
 import { ai } from "@/src/services/ai";
 
 const STATUS = ["Scavvy is looking around...", "Interesting...", "I've got some ideas."];
@@ -30,14 +31,25 @@ export default function AnalyzingEnv() {
     let cancelled = false;
     (async () => {
       const start = Date.now();
-      const res = await ai.analyzeEnvironment(String(location), scanImages || []);
-      const quests = await ai.generateQuests(String(location), res.environment);
-      const elapsed = Date.now() - start;
-      if (elapsed < 3200) await new Promise((r) => setTimeout(r, 3200 - elapsed));
-      if (cancelled) return;
-      setEnv(res.environment);
-      loadQuests(quests);
-      router.replace("/mission/quests");
+      try {
+        const photos = peekScanImages().length > 0 ? peekScanImages() : (scanImages || []);
+        const res = await ai.analyzeEnvironment(String(location), photos);
+        const quests = await ai.generateQuests(String(location), res.environment);
+        const elapsed = Date.now() - start;
+        if (elapsed < 3200) await new Promise((r) => setTimeout(r, 3200 - elapsed));
+        if (cancelled) return;
+        setEnv(res.environment);
+        loadQuests(quests);
+        router.replace("/mission/quests");
+      } catch (error) {
+        if (__DEV__) console.warn("[scavvy] environment analysis failed", error instanceof Error ? error.name : "unknown");
+        if (cancelled) return;
+        const res = await ai.analyzeEnvironment(String(location), []);
+        const quests = await ai.generateQuests(String(location), res.environment);
+        setEnv(res.environment);
+        loadQuests(quests);
+        router.replace("/mission/quests");
+      }
     })();
 
     return () => { cancelled = true; clearInterval(iv); };

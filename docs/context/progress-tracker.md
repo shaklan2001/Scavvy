@@ -28,6 +28,7 @@ Repo layout is now **frontend / backend / docs** only.
 - [x] Expo native tabs (device) + glass tab bar (web)
 - [x] Vector icons for functional UI
 - [x] Demo fallback if the Node API / OpenAI / ElevenLabs are unavailable
+- [x] Frontend wired to the Node `/api` contract (scan, quests, validate, hint, voice)
 
 ## In Progress
 
@@ -67,11 +68,17 @@ Open App
 ## Latest update
 
 ### Completed
-- Frontend is standalone: mock quests, hints, validation, and bundled voice
-- Live API is opt-in via `EXPO_PUBLIC_BACKEND_URL` (empty by default)
+- Frontend calls the Node API end-to-end: scan analysis, quest generation, validation, hints, summary, and voice
+- Scan and verification photos are sent as JPEG data URLs (iPhone processing on; HEIC is not sent to vision)
+- Live origin is Metro `/api` in Expo Go (proxied to the Node API), with a fallback to `EXPO_PUBLIC_BACKEND_URL`
+- OpenAI quest JSON is an object wrapper; overlapping quest types are kept instead of discarding the live result
+- CORS uses an exact origin allowlist via `CORS_ORIGINS`
+- ElevenLabs library voices on a free plan return 204; the app plays bundled clips
 
 ### Next
-- Run `npx expo start` in `frontend` and play the scan → quest loop
+- Phone and Mac on the same Wi-Fi; restart Metro after `metro.config.js` or env changes, then reload Expo Go
+- `cd backend && npm run dev` then `cd frontend && npx expo start` (LAN, not tunnel)
 
 ### Risks
 - Web camera is limited — use “Use a sample scan” on web
+- Android emulator should use `http://10.0.2.2:4000` instead of localhost

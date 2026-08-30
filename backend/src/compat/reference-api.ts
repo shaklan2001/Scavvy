@@ -249,14 +249,31 @@ export function mapReferenceLocation(locationType?: string): LocationType {
   }
 }
 
+function looksLikeHeif(buffer: Buffer): boolean {
+  return buffer.length >= 12 && buffer.subarray(4, 8).toString('ascii') === 'ftyp';
+}
+
 export function decodeReferenceImages(images: string[]): ImageInput[] {
   return images.slice(0, 3).flatMap((image, index) => {
-    const dataUrl = /^data:(image\/(?:jpeg|png|webp));base64,([a-zA-Z0-9+/=]+)$/.exec(image);
-    const encoded = dataUrl?.[2] ?? (/^[a-zA-Z0-9+/=]+$/.test(image) ? image : undefined);
-    if (!encoded) return [];
+    if (typeof image !== 'string' || image.length < 8) return [];
+    const trimmed = image.trim();
+    const marker = ';base64,';
+    const markerAt = trimmed.indexOf(marker);
+    let mimetype = 'image/jpeg';
+    let encoded = trimmed;
+    if (trimmed.startsWith('data:') && markerAt > 5) {
+      const mime = trimmed.slice(5, markerAt).split(';')[0]?.toLowerCase() ?? 'image/jpeg';
+      mimetype = mime === 'image/jpg' || mime === 'image/heic' || mime === 'image/heif' ? 'image/jpeg' : mime;
+      if (!mimetype.startsWith('image/')) return [];
+      encoded = trimmed.slice(markerAt + marker.length).replace(/\s/g, '');
+    } else {
+      encoded = trimmed.replace(/\s/g, '');
+    }
+    if (encoded.length < 8 || encoded.length > 8 * 1024 * 1024) return [];
     const buffer = Buffer.from(encoded, 'base64');
     if (buffer.length === 0 || buffer.length > 5 * 1024 * 1024) return [];
-    return [{ buffer, mimetype: dataUrl?.[1] ?? 'image/jpeg', originalname: `environment-${index + 1}` }];
+    if (looksLikeHeif(buffer)) return [];
+    return [{ buffer, mimetype, originalname: `environment-${index + 1}` }];
   });
 }
 

@@ -9,8 +9,9 @@ docs/       required.md + context/
 ```
 
 The Expo app talks to the Node server through `EXPO_PUBLIC_BACKEND_URL`.  
-Leave it empty to run the app fully offline with local mocks.  
-When the partner API is up, set it to that origin, e.g. `http://localhost:4000`.
+On a physical phone, Expo Go talks to Metro (`http://YOUR_WIFI_IP:8081`) and Metro proxies `/api` to the Node server on port 4000. That avoids iOS blocking cleartext HTTP to port 4000.
+
+Scan photos and verification photos are sent as JPEG/PNG/WebP data URLs in the JSON body. They are not stored on the server.
 
 Secrets stay in `backend/.env`. Never put OpenAI or ElevenLabs keys in the Expo client.
 
@@ -43,11 +44,12 @@ The Expo client already calls these routes under `/api`. The Node backend should
 
 | Method | Path | Body / query | Used for |
 | --- | --- | --- | --- |
-| GET | `/api/` | — | Health check |
+| GET | `/api/health` | — | Liveness |
+| GET | `/api/` | — | Friendly health check |
 | POST | `/api/adventure/start` | `{ name, personality, style }` | Start a session |
 | POST | `/api/environment/analyze` | `{ location_type, images }` | Read 3 scan photos |
 | POST | `/api/environment/quests` | `{ location_type, environment }` | Create 3 quests |
-| POST | `/api/quest/validate` | `{ mission_title, environment, image, attempt }` | Check a find |
+| POST | `/api/quest/validate` | `{ mission_title, environment, image, attempt, difficulty }` | Check a find |
 | POST | `/api/quest/hint` | `{ mission_title, environment, hint_level }` | Ask Scavvy |
 | POST | `/api/mission/analyze` | `{ mission_title, mission_index, difficulty, personality, style, attempt }` | Legacy validate |
 | POST | `/api/mission/easier` | `{ mission_title, style }` | Easier mission |
@@ -56,7 +58,7 @@ The Expo client already calls these routes under `/api`. The Node backend should
 
 If a route is missing or fails, the Expo app falls back to local mock data and bundled voice clips. The demo must never stall.
 
-CORS must use an exact origin allowlist (Expo web is typically `http://localhost:8081`). Do not use `*`.
+CORS must use an exact origin allowlist from `CORS_ORIGINS` (Expo web is typically `http://localhost:8081`). Do not use `*` or `null`. Native Expo clients often send no `Origin` header; those requests are not CORS-gated.
 
 ## Architecture Principles
 

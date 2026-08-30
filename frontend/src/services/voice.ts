@@ -4,7 +4,7 @@
 // pre-generated spoken clip so the button is ALWAYS audible for the demo.
 import { createAudioPlayer, setAudioModeAsync, AudioPlayer } from "expo-audio";
 import * as Haptics from "expo-haptics";
-import { API_URL, isLiveApi } from "@/src/config";
+import { apiGetJson } from "@/src/services/http";
 
 const CLIPS = {
   mission_intro: require("../../assets/audio/mission_intro.mp3"),
@@ -30,22 +30,19 @@ async function ensureMode() {
   modeReady = true;
   try {
     await setAudioModeAsync({ playsInSilentMode: true });
-  } catch {}
+  } catch (error) {
+    if (__DEV__) console.warn("[scavvy] audio mode failed", error instanceof Error ? error.name : "unknown");
+  }
 }
 
 async function fetchEleven(line: VoiceLine): Promise<string | null> {
-  if (!isLiveApi) return null;
   try {
-    const controller = new AbortController();
-    const t = setTimeout(() => controller.abort(), 5000);
-    const res = await fetch(`${API_URL}/voice?line=${encodeURIComponent(line)}`, {
-      signal: controller.signal,
-    });
-    clearTimeout(t);
-    if (res.status !== 200) return null;
-    const j = await res.json();
-    return j?.audio || null;
-  } catch {
+    const payload = await apiGetJson<{ audio?: unknown }>(`/voice?line=${encodeURIComponent(line)}`);
+    return typeof payload?.audio === "string" && payload.audio.length > 0 ? payload.audio : null;
+  } catch (error) {
+    if (__DEV__) {
+      console.warn("[scavvy] voice fell back to bundled clip", error instanceof Error ? error.name : "unknown");
+    }
     return null;
   }
 }

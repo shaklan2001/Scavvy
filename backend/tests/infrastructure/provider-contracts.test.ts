@@ -25,6 +25,34 @@ describe('OpenAI provider', () => {
     expect(request).toMatchObject({ model: 'gpt-5.6-luna' });
   });
 
+  it('parses three wrapped quests from structured output', async () => {
+    const provider = new OpenAiProvider({
+      responses: { create: async () => ({ output_text: JSON.stringify({ quests: [
+        { type: 'observation', title: 'Look', description: 'A', difficulty: 'easy', xp: 100 },
+        { type: 'visual_clue', title: 'Color', description: 'B', difficulty: 'medium', xp: 150 },
+        { type: 'reasoning', title: 'Think', description: 'C', difficulty: 'easy', xp: 75 },
+      ] }) }) },
+    });
+
+    await expect(provider.generateQuests({
+      environmentType: 'office', visibleObjects: [], colors: [], landmarks: [], possibleQuestTargets: [], possibleHints: [],
+    })).resolves.toHaveLength(3);
+  });
+
+  it('keeps three valid quests even when types repeat', async () => {
+    const provider = new OpenAiProvider({
+      responses: { create: async () => ({ output_text: JSON.stringify({ quests: [
+        { type: 'observation', title: 'Look', description: 'A', difficulty: 'easy', xp: 100 },
+        { type: 'observation', title: 'Look again', description: 'B', difficulty: 'easy', xp: 100 },
+        { type: 'observation', title: 'Keep looking', description: 'C', difficulty: 'easy', xp: 75 },
+      ] }) }) },
+    });
+
+    await expect(provider.generateQuests({
+      environmentType: 'office', visibleObjects: [], colors: [], landmarks: [], possibleQuestTargets: [], possibleHints: [],
+    })).resolves.toHaveLength(3);
+  });
+
   it('rejects AI output that does not contain exactly three quests', async () => {
     const provider = new OpenAiProvider({
       responses: { create: async () => ({ output_text: JSON.stringify([{ type: 'observation', title: 'Only one', description: 'Nope', difficulty: 'easy', xp: 100 }]) }) },
@@ -52,6 +80,15 @@ describe('OpenAI provider', () => {
 describe('ElevenLabs provider', () => {
   it('falls back without making a network request when voice is unconfigured', async () => {
     const provider = new ElevenLabsProvider({ apiKey: '', voiceId: '' });
+    await expect(provider.synthesize('Hello')).resolves.toBeNull();
+  });
+
+  it('returns null when ElevenLabs rejects the request', async () => {
+    const provider = new ElevenLabsProvider({
+      apiKey: 'test-key',
+      voiceId: 'voice-1',
+      fetchFn: async () => ({ ok: false, headers: { get: () => null }, arrayBuffer: async () => new ArrayBuffer(0) }) as never,
+    });
     await expect(provider.synthesize('Hello')).resolves.toBeNull();
   });
 

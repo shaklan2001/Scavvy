@@ -37,6 +37,11 @@ export type Adventure = {
   missions: Mission[];
 };
 
+export type VerificationPhoto = {
+  uri: string;
+  base64: string | null;
+};
+
 export type AnalyzeResult = {
   success: boolean;
   xp: number;
