@@ -4,7 +4,6 @@ import { createApp } from '../../src/app.js';
 
 function app() {
   return createApp({
-    store: {} as never,
     ai: {} as never,
     voice: { async synthesize() { return null; } },
   });
@@ -58,7 +57,6 @@ describe('reference frontend compatibility routes', () => {
 
   it('accepts the raw base64 camera images produced by the Expo scanner', async () => {
     const visionApp = createApp({
-      store: {} as never,
       ai: {
         async analyzeEnvironment(images: Array<{ buffer: Buffer }>) {
           expect(images).toHaveLength(1);
@@ -82,7 +80,6 @@ describe('reference frontend compatibility routes', () => {
 
   it('uses the configured AI for a supplied legacy quest photo and contextual hint', async () => {
     const aiApp = createApp({
-      store: {} as never,
       ai: {
         async validateQuest() {
           return { success: true, confidence: 0.93, explanation: 'That is clearly a lamp.', scavvyReaction: 'Great find.' };
