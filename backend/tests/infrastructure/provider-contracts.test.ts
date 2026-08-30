@@ -22,6 +22,7 @@ describe('OpenAI provider', () => {
 
     expect(result.environmentType).toBe('office');
     expect(JSON.stringify(request)).toContain('input_image');
+    expect(request).toMatchObject({ model: 'gpt-5.6-luna' });
   });
 
   it('rejects AI output that does not contain exactly three quests', async () => {

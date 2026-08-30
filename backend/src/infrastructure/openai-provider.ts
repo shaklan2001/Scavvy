@@ -34,7 +34,7 @@ const verificationSchema = z.object({
 });
 
 export class OpenAiProvider implements ScavvyAiProvider {
-  constructor(private readonly client: ResponsesClient, private readonly model = process.env.OPENAI_MODEL ?? 'gpt-5') {}
+  constructor(private readonly client: ResponsesClient, private readonly model = process.env.OPENAI_MODEL ?? 'gpt-5.6-luna') {}
 
   async analyzeEnvironment(images: ImageInput[], locationType: LocationType): Promise<EnvironmentContext> {
     const output = await this.requestJson({
@@ -125,6 +125,6 @@ function schemaFor(name: string): Record<string, unknown> {
   };
 }
 
-export function createOpenAiProvider(apiKey: string, model = process.env.OPENAI_MODEL ?? 'gpt-5'): OpenAiProvider {
+export function createOpenAiProvider(apiKey: string, model = process.env.OPENAI_MODEL ?? 'gpt-5.6-luna'): OpenAiProvider {
   return new OpenAiProvider(new OpenAI({ apiKey }) as unknown as ResponsesClient, model);
 }

@@ -34,6 +34,7 @@ Copy the local `SUPABASE_SERVICE_ROLE_KEY` from the status output into `.env`. F
 ```dotenv
 SUPABASE_URL=http://127.0.0.1:54321
 OPENAI_API_KEY=your-key
+OPENAI_MODEL=gpt-5.6-luna
 ```
 
 Apply the schema:
