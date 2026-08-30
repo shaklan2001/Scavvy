@@ -1,7 +1,6 @@
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
-import { LogBox } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -13,9 +12,6 @@ import { fontMap } from "@/src/theme";
 import { ScavvyProvider } from "@/src/state/ScavvyContext";
 import { ToastProvider } from "@/src/components/Toast";
 
-LogBox.ignoreAllLogs(true);
-
-// Keep the native splash visible from cold start until fonts register.
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {

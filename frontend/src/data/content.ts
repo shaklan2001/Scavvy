@@ -1,5 +1,6 @@
-// Static content: personalities, adventure styles, and offline fallbacks
-// used when the backend/AI service is unreachable (demo must never stall).
+// Static content: personalities, adventure styles, and offline fallbacks.
+// The Expo app runs standalone — these mocks are the default AI path.
+import type { EnvironmentContext, Quest } from "@/src/types";
 
 export type Personality = {
   key: string;
@@ -101,3 +102,90 @@ export const FALLBACK_SUMMARY: Record<string, string> = {
   creative: "You find stories in objects most people ignore.",
   chaos: "You picked the weirdest possible answers. I'm impressed and concerned.",
 };
+
+const ENV_BY_LOCATION: Record<string, EnvironmentContext> = {
+  Home: {
+    environmentType: "a cosy home",
+    visibleObjects: ["mug", "lamp", "remote control", "houseplant", "book", "charger"],
+    colors: ["warm brown", "cream", "green"],
+    landmarks: ["sofa", "window"],
+    possibleQuestTargets: ["remote control", "houseplant", "mug"],
+    possibleHints: ["near where people relax", "something that needs water", "it holds a warm drink"],
+  },
+  Office: {
+    environmentType: "a busy office",
+    visibleObjects: ["laptop", "whiteboard", "coffee cup", "monitor", "sticky notes", "backpack"],
+    colors: ["grey", "blue", "white"],
+    landmarks: ["desk", "meeting board"],
+    possibleQuestTargets: ["whiteboard", "laptop", "coffee cup"],
+    possibleHints: ["people look at it in meetings", "useless without electricity", "it keeps you awake"],
+  },
+  Campus: {
+    environmentType: "a university campus",
+    visibleObjects: ["backpack", "notebook", "water bottle", "projector", "bench", "poster"],
+    colors: ["blue", "green", "white"],
+    landmarks: ["lecture board", "noticeboard"],
+    possibleQuestTargets: ["projector", "water bottle", "poster"],
+    possibleHints: ["helps a big group see", "keeps you hydrated", "it hangs on a wall"],
+  },
+  Outdoors: {
+    environmentType: "an outdoor space",
+    visibleObjects: ["tree", "bench", "sign", "bicycle", "trash bin", "streetlight"],
+    colors: ["green", "grey", "brown"],
+    landmarks: ["path", "signpost"],
+    possibleQuestTargets: ["sign", "bench", "streetlight"],
+    possibleHints: ["tells you where to go", "lights up at night", "a place to sit"],
+  },
+  "Somewhere Else": {
+    environmentType: "an interesting space",
+    visibleObjects: ["chair", "bottle", "bag", "phone", "clock", "cup"],
+    colors: ["mixed"],
+    landmarks: ["corner", "table"],
+    possibleQuestTargets: ["clock", "bottle", "bag"],
+    possibleHints: ["it keeps track of time", "you carry things in it", "you drink from it"],
+  },
+};
+
+export function fallbackEnvironment(locationType: string): EnvironmentContext {
+  return ENV_BY_LOCATION[locationType] ?? ENV_BY_LOCATION.Home;
+}
+
+export function fallbackQuests(environment: EnvironmentContext): Quest[] {
+  const color = environment.colors[0] ?? "colourful";
+  return [
+    {
+      id: "q1",
+      type: "observation",
+      title: "Find something that helps people communicate without speaking.",
+      hint: "You'll know it when you see it.",
+      difficulty: "Easy",
+      xp: 100,
+    },
+    {
+      id: "q2",
+      type: "reasoning",
+      title: `I remember seeing something ${color}. Find it.`,
+      hint: "Trust your memory of the room.",
+      difficulty: "Medium",
+      xp: 150,
+    },
+    {
+      id: "q3",
+      type: "visual",
+      title: "Find something that becomes much less useful without electricity.",
+      hint: "It probably has a plug or a battery.",
+      difficulty: "Easy",
+      xp: 75,
+    },
+  ];
+}
+
+export function fallbackHint(environment: EnvironmentContext | null, hintLevel: number): string {
+  const hints = environment?.possibleHints ?? [
+    "I remember seeing something useful nearby.",
+    "People usually spend the most time near it.",
+    "It's a very ordinary object, honestly.",
+  ];
+  const level = Math.min(Math.max(hintLevel, 1), 3);
+  return hints[level - 1] ?? hints[0];
+}
