@@ -22,4 +22,4 @@ enabled = false
 enabled = true
 
 [auth]
-enabled = false
+enabled = true
