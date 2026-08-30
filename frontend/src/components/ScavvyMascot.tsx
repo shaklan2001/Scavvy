@@ -139,10 +139,10 @@ export function ScavvyProp({
   );
 }
 
-export const ScavvyLogo = ({ width = 220, style }: { width?: number; style?: StyleProp<ImageStyle> }) => (
+export const ScavvyLogo = ({ width = 280, style }: { width?: number; style?: StyleProp<ImageStyle> }) => (
   <Image
-    source={require("../../assets/mascot/logo.png")}
-    style={[{ width, height: width * 0.6 }, style]}
+    source={require("../../assets/images/scavvy_logo.png")}
+    style={[{ width, height: width }, style]}
     contentFit="contain"
   />
 );

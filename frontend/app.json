@@ -1,16 +1,16 @@
 {
   "expo": {
     "name": "Scavvy",
-    "slug": "frontend",
+    "slug": "scavvy",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
-    "scheme": "frontend",
+    "icon": "./assets/images/scavvy_logo.png",
+    "scheme": "scavvy",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.emergent.scavvyexplore.bpw9xv",
+      "bundleIdentifier": "com.scavvy.app",
       "infoPlist": {
         "NSCameraUsageDescription": "Scan the world to unlock missions",
         "NSPhotoLibraryUsageDescription": "Share photos to complete missions",
@@ -19,11 +19,11 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "foregroundImage": "./assets/images/scavvy_logo.png",
         "backgroundColor": "#FF8A00"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.emergent.scavvyexplore.bpw9xv",
+      "package": "com.scavvy.app",
       "permissions": [
         "CAMERA",
         "ACCESS_FINE_LOCATION",
@@ -34,15 +34,15 @@
     "web": {
       "bundler": "metro",
       "output": "single",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/scavvy_logo.png"
     },
     "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-image.png",
-          "imageWidth": 200,
+          "image": "./assets/images/scavvy_logo.png",
+          "imageWidth": 280,
           "resizeMode": "contain",
           "backgroundColor": "#FFF6E6"
         }
@@ -65,7 +65,9 @@
           "locationWhenInUsePermission": "Create adventures where you explore"
         }
       ],
-      "expo-audio"
+      "expo-audio",
+      "expo-font",
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true

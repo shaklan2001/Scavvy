@@ -1,50 +1,54 @@
-// Backend / AI service layer. Wraps the FastAPI mock endpoints and always
-// degrades gracefully to local fallbacks so the demo never gets stuck.
+// Local-first AI layer. The Expo app runs fully offline with mock quests.
+// A live backend is optional — only used when EXPO_PUBLIC_BACKEND_URL is set.
 import {
   fallbackAnalyze,
+  fallbackEnvironment,
+  fallbackHint,
   fallbackMissions,
+  fallbackQuests,
   FALLBACK_SUMMARY,
   FALLBACK_TRAITS,
 } from "@/src/data/content";
+import { API_URL, isLiveApi } from "@/src/config";
+import type {
+  Adventure,
+  AdventureSummary,
+  AnalyzeResult,
+  EnvironmentContext,
+  Mission,
+  Quest,
+} from "@/src/types";
 
-const BASE = `${process.env.EXPO_PUBLIC_BACKEND_URL}/api`;
+export type { Adventure, Mission };
 
-async function post(path: string, body: any, timeoutMs = 6000) {
+type JsonRecord = Record<string, unknown>;
+
+async function post<T>(path: string, body: JsonRecord, timeoutMs = 6000): Promise<T> {
+  if (!isLiveApi) {
+    throw new Error("offline");
+  }
   const controller = new AbortController();
-  const t = setTimeout(() => controller.abort(), timeoutMs);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetch(`${BASE}${path}`, {
+    const res = await fetch(`${API_URL}${path}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
       signal: controller.signal,
     });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return await res.json();
+    if (!res.ok) {
+      throw new Error(`Request failed (${res.status})`);
+    }
+    return (await res.json()) as T;
   } finally {
-    clearTimeout(t);
+    clearTimeout(timer);
   }
 }
-
-export type Mission = {
-  index: number;
-  title: string;
-  hint: string;
-  difficulty: string;
-};
-
-export type Adventure = {
-  id: string;
-  name: string;
-  personality: string;
-  style: string;
-  missions: Mission[];
-};
 
 export const ai = {
   async startAdventure(name: string, personality: string, style: string): Promise<Adventure> {
     try {
-      return await post("/adventure/start", { name, personality, style });
+      return await post<Adventure>("/adventure/start", { name, personality, style });
     } catch {
       return {
         id: `local-${Date.now()}`,
@@ -63,9 +67,9 @@ export const ai = {
     personality: string;
     style: string;
     attempt: number;
-  }) {
+  }): Promise<AnalyzeResult> {
     try {
-      return await post("/mission/analyze", {
+      return await post<AnalyzeResult>("/mission/analyze", {
         mission_title: args.missionTitle,
         mission_index: args.missionIndex,
         difficulty: args.difficulty,
@@ -80,7 +84,7 @@ export const ai = {
 
   async easierMission(missionTitle: string, style: string): Promise<Mission> {
     try {
-      return await post("/mission/easier", { mission_title: missionTitle, style });
+      return await post<Mission>("/mission/easier", { mission_title: missionTitle, style });
     } catch {
       return {
         index: 0,
@@ -91,42 +95,63 @@ export const ai = {
     }
   },
 
-  async analyzeEnvironment(locationType: string, images: string[]) {
+  async analyzeEnvironment(locationType: string, _images: string[]) {
     try {
-      return await post("/environment/analyze", { location_type: locationType, images }, 30000);
+      return await post<{ environment: EnvironmentContext; source: string }>(
+        "/environment/analyze",
+        { location_type: locationType, images: _images },
+        30000
+      );
     } catch {
-      return { environment: { environmentType: `a ${locationType} space`, visibleObjects: ["object"], colors: ["mixed"], landmarks: [], possibleQuestTargets: [], possibleHints: ["It's closer than you think."] }, source: "mock" };
+      return { environment: fallbackEnvironment(locationType), source: "mock" };
     }
   },
 
-  async generateQuests(locationType: string, environment: any) {
+  async generateQuests(locationType: string, environment: EnvironmentContext): Promise<Quest[]> {
     try {
-      const r = await post("/environment/quests", { location_type: locationType, environment }, 20000);
-      return r.quests as any[];
+      const result = await post<{ quests: Quest[] }>(
+        "/environment/quests",
+        { location_type: locationType, environment },
+        20000
+      );
+      return result.quests;
     } catch {
-      return [
-        { id: "q1", type: "observation", title: "Find something that helps people communicate without speaking.", hint: "You'll know it when you see it.", difficulty: "Easy", xp: 100 },
-        { id: "q2", type: "reasoning", title: "I remember seeing something colourful. Find it.", hint: "Trust your memory of the room.", difficulty: "Medium", xp: 150 },
-        { id: "q3", type: "visual", title: "Find something that becomes much less useful without electricity.", hint: "It probably has a plug or a battery.", difficulty: "Easy", xp: 75 },
-      ];
+      return fallbackQuests(environment);
     }
   },
 
-  async validateQuest(args: { missionTitle: string; environment: any; image: string | null; attempt: number }) {
+  async validateQuest(args: {
+    missionTitle: string;
+    environment: EnvironmentContext | null;
+    image: string | null;
+    attempt: number;
+  }): Promise<AnalyzeResult> {
     try {
-      return await post("/quest/validate", { mission_title: args.missionTitle, environment: args.environment, image: args.image, attempt: args.attempt }, 30000);
+      return await post<AnalyzeResult>(
+        "/quest/validate",
+        {
+          mission_title: args.missionTitle,
+          environment: args.environment ?? undefined,
+          image: args.image,
+          attempt: args.attempt,
+        },
+        30000
+      );
     } catch {
       return fallbackAnalyze(args.missionTitle);
     }
   },
 
-  async askHint(missionTitle: string, environment: any, hintLevel: number) {
+  async askHint(missionTitle: string, environment: EnvironmentContext | null, hintLevel: number) {
     try {
-      const r = await post("/quest/hint", { mission_title: missionTitle, environment, hint_level: hintLevel }, 15000);
-      return r.hint as string;
+      const result = await post<{ hint: string }>(
+        "/quest/hint",
+        { mission_title: missionTitle, environment: environment ?? undefined, hint_level: hintLevel },
+        15000
+      );
+      return result.hint;
     } catch {
-      const hints = ["I remember seeing something useful nearby.", "People usually spend the most time near it.", "It's a very ordinary object, honestly."];
-      return hints[Math.min(hintLevel - 1, 2)];
+      return fallbackHint(environment, hintLevel);
     }
   },
 
@@ -136,9 +161,9 @@ export const ai = {
     style: string;
     missionsCompleted: number;
     totalXp: number;
-  }) {
+  }): Promise<AdventureSummary> {
     try {
-      return await post("/adventure/summary", {
+      return await post<AdventureSummary>("/adventure/summary", {
         name: args.name,
         personality: args.personality,
         style: args.style,
@@ -146,11 +171,11 @@ export const ai = {
         total_xp: args.totalXp,
       });
     } catch {
-      const p = args.personality || "explorer";
+      const personality = args.personality || "explorer";
       return {
         headline: "ADVENTURE COMPLETE",
-        summary: FALLBACK_SUMMARY[p] || FALLBACK_SUMMARY.explorer,
-        traits: FALLBACK_TRAITS[p] || FALLBACK_TRAITS.explorer,
+        summary: FALLBACK_SUMMARY[personality] || FALLBACK_SUMMARY.explorer,
+        traits: FALLBACK_TRAITS[personality] || FALLBACK_TRAITS.explorer,
         total_xp: args.totalXp,
         streak_delta: 1,
       };

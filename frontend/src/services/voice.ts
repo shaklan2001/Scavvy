@@ -4,8 +4,7 @@
 // pre-generated spoken clip so the button is ALWAYS audible for the demo.
 import { createAudioPlayer, setAudioModeAsync, AudioPlayer } from "expo-audio";
 import * as Haptics from "expo-haptics";
-
-const BASE = `${process.env.EXPO_PUBLIC_BACKEND_URL}/api`;
+import { API_URL, isLiveApi } from "@/src/config";
 
 const CLIPS = {
   mission_intro: require("../../assets/audio/mission_intro.mp3"),
@@ -35,10 +34,13 @@ async function ensureMode() {
 }
 
 async function fetchEleven(line: VoiceLine): Promise<string | null> {
+  if (!isLiveApi) return null;
   try {
     const controller = new AbortController();
     const t = setTimeout(() => controller.abort(), 5000);
-    const res = await fetch(`${BASE}/voice?line=${line}`, { signal: controller.signal });
+    const res = await fetch(`${API_URL}/voice?line=${encodeURIComponent(line)}`, {
+      signal: controller.signal,
+    });
     clearTimeout(t);
     if (res.status !== 200) return null;
     const j = await res.json();

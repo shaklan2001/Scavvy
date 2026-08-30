@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { storage } from "@/src/utils/storage";
-import { ai, Adventure, Mission } from "@/src/services/ai";
+import { ai } from "@/src/services/ai";
+import type { Adventure, EnvironmentContext, Mission, Quest } from "@/src/types";
 
 export type Profile = {
   name: string;
@@ -55,11 +56,11 @@ type Ctx = {
   profile: Profile | null;
   progress: Progress;
   adventure: ActiveAdventure | null;
-  env: any | null;
+  env: EnvironmentContext | null;
   scanImages: string[];
-  setEnv: (e: any) => void;
+  setEnv: (e: EnvironmentContext | null) => void;
   setScanImages: (imgs: string[]) => void;
-  loadQuests: (missions: any[]) => void;
+  loadQuests: (missions: Array<Quest | Mission>) => void;
   selectQuest: (index: number) => void;
   saveProfile: (p: Partial<Profile>) => Promise<void>;
   startAdventure: () => Promise<ActiveAdventure>;
@@ -78,25 +79,25 @@ export function ScavvyProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [progress, setProgress] = useState<Progress>(SEED_PROGRESS);
   const [adventure, setAdventure] = useState<ActiveAdventure | null>(null);
-  const [env, setEnv] = useState<any | null>(null);
+  const [env, setEnv] = useState<EnvironmentContext | null>(null);
   const [scanImages, setScanImages] = useState<string[]>([]);
 
-  const loadQuests = useCallback((missions: any[]) => {
+  const loadQuests = useCallback((missions: Array<Quest | Mission>) => {
     setAdventure({
       id: `adv-${Date.now()}`,
       currentIndex: 0,
-      missions: missions.map((m, i) => ({
-        index: i,
-        title: m.title,
-        hint: m.hint,
-        difficulty: m.difficulty || "Easy",
-        type: m.type,
-        xp: m.xp || 100,
-        status: "pending",
+      missions: missions.map((mission, index) => ({
+        index,
+        title: mission.title,
+        hint: mission.hint,
+        difficulty: mission.difficulty || "Easy",
+        type: "type" in mission ? mission.type : undefined,
+        xp: "xp" in mission ? mission.xp ?? 100 : 100,
+        status: "pending" as const,
         photoUri: null,
         earnedXp: 0,
         line: "",
-      })) as any,
+      })),
     });
   }, []);
 
@@ -106,8 +107,8 @@ export function ScavvyProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     (async () => {
-      const p = await storage.getItem<any>(PROFILE_KEY, null);
-      const pr = await storage.getItem<any>(PROGRESS_KEY, null);
+      const p = await storage.getItem<Profile | null>(PROFILE_KEY, null);
+      const pr = await storage.getItem<Progress | null>(PROGRESS_KEY, null);
       if (p) setProfile(p);
       if (pr) setProgress(pr);
       setReady(true);
@@ -128,7 +129,7 @@ export function ScavvyProvider({ children }: { children: React.ReactNode }) {
       return next;
     });
     // First time a profile is created, lay down seed progress.
-    const existing = await storage.getItem<any>(PROGRESS_KEY, null);
+    const existing = await storage.getItem<Progress | null>(PROGRESS_KEY, null);
     if (!existing) {
       setProgress(SEED_PROGRESS);
       await storage.setItem(PROGRESS_KEY, SEED_PROGRESS);
